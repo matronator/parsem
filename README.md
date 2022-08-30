@@ -1,2 +1,3 @@
-# parsem
- Parser for YAML, JSON and NEON templates
+# ParsEm
+
+Parser for YAML, JSON and NEON template.

@@ -1,0 +1,55 @@
+{
+    "name": "matronator/parsem",
+    "description": "Parse YAML, JSON and NEON templates.",
+    "type": "library",
+    "keywords": ["parser", "yaml", "json", "neon", "templates", "template engine", "template parser"],
+    "license": "MIT",
+    "version": "1.0.0",
+    "readme": "README.md",
+    "autoload": {
+        "psr-4": {
+            "Matronator\\Parsem\\": ["src/Parsem/"]
+        }
+    },
+    "authors": [
+        {
+            "name": "Matronator",
+            "email": "5470780+matronator@users.noreply.github.com",
+            "homepage": "https://matronator.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "nette/neon": "^3.3",
+        "symfony/yaml": "^5.4",
+        "opis/json-schema": "^2.3"
+    },
+    "config": {
+        "platform": {
+			"php": "7.4"
+		}
+    },
+    "minimum-stability": "stable",
+    "funding": [
+        {
+            "type": "patreon",
+            "url": "https://www.patreon.com/bePatron?u=34136375"
+        },
+        {
+            "type": "paypal",
+            "url": "https://www.paypal.com/paypalme/matronator"
+        },
+        {
+            "type": "ko-fi",
+            "url": "https://ko-fi.com/matronator"
+        },
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/matronator"
+        }
+    ],
+    "require-dev": {
+        "nette/tester": "^2.4"
+    }
+}
