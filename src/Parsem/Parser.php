@@ -23,7 +23,7 @@ final class Parser
      * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
      * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
      */
-    public static function parse(mixed $string, array $arguments = [], ?string $pattern = null): mixed
+    public static function parseString(mixed $string, array $arguments = [], ?string $pattern = null): mixed
     {
         if (!is_string($string)) return $string;
 
@@ -47,9 +47,16 @@ final class Parser
      */
     public static function parseFile(string $filename, array $arguments = [], ?string $pattern = null): object
     {
+        return self::decodeByExtension($filename, self::parseFileToString($filename, $arguments, $pattern));
+    }
+
+    public static function parseFileToString(string $filename, array $arguments = [], ?string $pattern = null): string
+    {
+        if (!file_exists($filename))
+            throw new RuntimeException("File '$filename' does not exist.");
+
         $contents = file_get_contents($filename);
-        $parsed = self::parse($contents, $arguments, $pattern);
-        return self::parseByExtension($filename, $parsed);
+        return self::parseString($contents, $arguments, $pattern);
     }
 
     /**
@@ -58,7 +65,7 @@ final class Parser
      * @param string $filename
      * @param string|null $contents [optional] You can also provide the file's content as a string, but you still have to provide a `$filename` to know which format to parse (YAML, JSON or NEON).
      */
-    public static function parseByExtension(string $filename, ?string $contents = null): object
+    public static function decodeByExtension(string $filename, ?string $contents = null): object
     {
         if (!file_exists($filename) && !$contents)
             throw new RuntimeException("File '$filename' does not exist.");
@@ -86,6 +93,25 @@ final class Parser
     }
 
     /**
+     * Parse a file of any type to object using a cutom provided parser function.
+     * @return object
+     * @param string $filename
+     * @param callable $function The parsing function with the following signature `function(string $contents): object` where `$contents` will be the string content of `$filename`.
+     * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
+     * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
+     */
+    public static function customParse(string $filename, callable $function, array $arguments = [], ?string $pattern = null): object
+    {
+        if (!file_exists($filename))
+            throw new RuntimeException("File '$filename' does not exist.");
+
+        if (!is_callable($function))
+            throw new InvalidArgumentException("Argument \$function is not callable.");
+
+        return $function(self::parseFileToString($filename, $arguments, $pattern));
+    }
+
+    /**
      * Validate the file against a template schema and return the result
      * @return boolean True if the file is a valid template, false otherwise.
      * @param string $filename
@@ -94,7 +120,7 @@ final class Parser
     public static function isValid(string $filename, ?string $contents = null): bool
     {
         try {
-            $parsed = self::parseByExtension($filename, $contents);
+            $parsed = self::decodeByExtension($filename, $contents);
         } catch (Exception $e) {
             return false;
         }

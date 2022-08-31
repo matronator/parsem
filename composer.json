@@ -30,6 +30,9 @@
 			"php": "7.4"
 		}
     },
+    "scripts": {
+        "test": "tester ."
+    },
     "minimum-stability": "stable",
     "funding": [
         {
