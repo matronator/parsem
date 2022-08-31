@@ -21,7 +21,7 @@ class ParserTest extends TestCase
      */
     public function testParseNonStringValue($arg)
     {
-        Assert::same($arg, Parser::parse($arg), 'Parse non-string value');
+        Assert::same($arg, Parser::parseString($arg), 'Parse non-string value');
     }
 
     /** @testCase */
@@ -30,7 +30,7 @@ class ParserTest extends TestCase
         $string = 'test <% mate %> and with a <%filter|strtoupper%>';
         $args = ['mate' => 0, 'filter' => 'lol'];
 
-        $parsed = Parser::parse($string, $args);
+        $parsed = Parser::parseString($string, $args);
 
         Assert::notContains('<%', $parsed, 'All template parameters are parsed.');
         Assert::equal('test 0 and with a LOL', $parsed, 'Parses correctly.');
