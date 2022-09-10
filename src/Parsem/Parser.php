@@ -134,7 +134,7 @@ final class Parser
         }
 
         $validator = new Validator();
-        $schema = 'https://files.matronator.com/public/mtrgen/1.0.2/mtrgen-template-schema.json';
+        $schema = file_get_contents('https://files.matronator.com/public/mtrgen/1.0.2/mtrgen-template-schema.json');
         $result = $validator->validate($parsed, $schema);
 
         return $result->isValid();
