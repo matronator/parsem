@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a7121a320bcf8056739fb64ab67662b4",
+    "content-hash": "eeb731d6818d123bb7320fd9f2816003",
     "packages": [
         {
             "name": "nette/neon",
