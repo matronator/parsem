@@ -72,6 +72,9 @@ final class Parser
 
             $extension = $file->getExtension();
         } else {
+            if (!$contents)
+                throw new RuntimeException("File '$filename' doesn't exist and no contents provided.");
+
             $matched = preg_match('/^.+?\.(json|yml|yaml|neon)$/', $filename, $matches);
             if (!$matched)
                 throw new RuntimeException("Couldn't get extension from filename '$filename'.");
