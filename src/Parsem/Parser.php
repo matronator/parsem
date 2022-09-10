@@ -67,12 +67,17 @@ final class Parser
      */
     public static function decodeByExtension(string $filename, ?string $contents = null): object
     {
-        if (!file_exists($filename) && !$contents)
-            throw new RuntimeException("File '$filename' does not exist.");
+        if (file_exists($filename)) {
+            $file = new SplFileObject($filename);
 
-        $file = new SplFileObject($filename);
+            $extension = $file->getExtension();
+        } else {
+            $matched = preg_match('/^.+?\.(json|yml|yaml|neon)$/', $filename, $matches);
+            if (!$matched)
+                throw new RuntimeException("Couldn't get extension from filename '$filename'.");
 
-        $extension = $file->getExtension();
+            $extension = $matches[1];
+        }
 
         switch ($extension) {
             case 'yml':
