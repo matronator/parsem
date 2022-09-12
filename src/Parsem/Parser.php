@@ -88,7 +88,7 @@ final class Parser
                 $parsed = $contents ? Yaml::parse($contents, Yaml::PARSE_OBJECT_FOR_MAP) : Yaml::parseFile($filename, Yaml::PARSE_OBJECT_FOR_MAP);
                 break;
             case 'neon':
-                $parsed = $contents ? (object) Neon::decode($contents) : (object) Neon::decodeFile($filename);
+                $parsed = $contents ? Neon::decode($contents, true) : Neon::decodeFile($filename, true);
                 break;
             case 'json':
                 $parsed = $contents ? json_decode($contents) : json_decode(file_get_contents($filename));
