@@ -88,7 +88,7 @@ final class Parser
                 $parsed = $contents ? Yaml::parse($contents, Yaml::PARSE_OBJECT_FOR_MAP) : Yaml::parseFile($filename, Yaml::PARSE_OBJECT_FOR_MAP);
                 break;
             case 'neon':
-                $parsed = $contents ? Neon::decode($contents) : Neon::decodeFile($filename);
+                $parsed = $contents ? (object) Neon::decode($contents) : (object) Neon::decodeFile($filename);
                 break;
             case 'json':
                 $parsed = $contents ? json_decode($contents) : json_decode(file_get_contents($filename));
@@ -134,7 +134,7 @@ final class Parser
         }
 
         $validator = new Validator();
-        $schema = file_get_contents('https://files.matronator.com/public/mtrgen/1.0.2/mtrgen-template-schema.json');
+        $schema = file_get_contents('https://files.matronator.com/public/mtrgen/latest/mtrgen-template-schema.json');
         $result = $validator->validate($parsed, $schema);
 
         return $result->isValid();
