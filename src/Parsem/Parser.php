@@ -134,7 +134,32 @@ final class Parser
         }
 
         $validator = new Validator();
-        $schema = file_get_contents('https://files.matronator.com/public/mtrgen/latest/mtrgen-template-schema.json');
+        $schema = file_get_contents('https://www.mtrgen.com/storage/schemas/template/latest/mtrgen-template-schema.json');
+        $result = $validator->validate($parsed, $schema);
+
+        return $result->isValid();
+    }
+
+    /**
+     * Validate the file against a template bundle schema and return the result
+     * @return boolean True if the file is a valid bundle, false otherwise.
+     * @param string $filename
+     * @param string|null $contents [optional] You can also provide the file's content as a string, but you still have to provide a `$filename` to know which format to parse (YAML, JSON or NEON).
+     */
+    public static function isValidBundle(string $filename, ?string $contents = null): bool
+    {
+        if (!preg_match('/^.+?(\.bundle)\..+?$/', $filename, $matches)) {
+            return false;
+        }
+
+        try {
+            $parsed = self::decodeByExtension($filename, $contents);
+        } catch (Exception $e) {
+            return false;
+        }
+
+        $validator = new Validator();
+        $schema = file_get_contents('https://www.mtrgen.com/storage/schemas/bundle/latest/mtrgen-bundle-schema.json');
         $result = $validator->validate($parsed, $schema);
 
         return $result->isValid();
