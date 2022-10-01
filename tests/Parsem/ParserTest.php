@@ -35,6 +35,17 @@ class ParserTest extends TestCase
         Assert::notContains('<%', $parsed, 'All template parameters are parsed.');
         Assert::equal('test 8 and with a LOL', $parsed, 'Parses correctly.');
     }
+
+    /** @testCase */
+    public function testFilterWithArguments()
+    {
+        $string = '<% var|substr:1,3 %>';
+        $args = ['var' => 'abcdef'];
+
+        $parsed = Parser::parseString($string, $args);
+
+        Assert::equal('bcd', $parsed, 'Filter with arguments parsed correctly.');
+    }
 }
 
 (new ParserTest())->run();

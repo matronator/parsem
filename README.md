@@ -10,22 +10,24 @@ Enhance your JSON/YAML/NEON files with variables and PHP functions as filters. C
 
 <!-- code_chunk_output -->
 
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-  - [Templates Syntax Highlighting for VS Code](#templates-syntax-highlighting-for-vs-code)
-- [Usage](#usage)
-  - [Template syntax](#template-syntax)
-    - [Variables](#variables)
-    - [Filters](#filters)
-      - [Example:](#example)
-  - [Use in code](#use-in-code)
-    - [Parse string or file](#parse-string-or-file)
-    - [Methods](#methods)
-      - [`Parser::parseString`](#parserparsestring)
-      - [`Parser::parseFile`](#parserparsefile)
-      - [`Parser::parseFileToString`](#parserparsefiletostring)
-    - [Using custom parser](#using-custom-parser)
+- [Pars'Em Template Engine](#parsem-template-engine)
+  - [Features](#features)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+    - [Templates Syntax Highlighting for VS Code](#templates-syntax-highlighting-for-vs-code)
+  - [Usage](#usage)
+    - [Template syntax](#template-syntax)
+      - [Variables](#variables)
+      - [Filters](#filters)
+        - [Example:](#example)
+        - [Example:](#example-1)
+    - [Use in code](#use-in-code)
+      - [Parse string or file](#parse-string-or-file)
+      - [Methods](#methods)
+        - [`Parser::parseString`](#parserparsestring)
+        - [`Parser::parseFile`](#parserparsefile)
+        - [`Parser::parseFileToString`](#parserparsefiletostring)
+      - [Using custom parser](#using-custom-parser)
 
 <!-- /code_chunk_output -->
 
@@ -82,6 +84,14 @@ The filter can be any PHP function with the variable used as the function's argu
 ##### Example:
 
 > If we have `<% foo|strtoupper %>` in the template and we provide an argument `['foo' => 'hello world']`, the final (parsed) output will be this: `HELLO WORLD`.
+
+Filters can also have additional arguments apart from the variable itself. To pass additional arguments to a filter, write it like this: `<% var|filter:'arg','arg2',20,true %>`. Each argument after the colon is separated by a comma and can have any scalar type as a value.
+
+The first argument will always the variable on which we're declaring the filter, with any other arguments passed after that.
+
+##### Example:
+
+> If we have `<% foo|substr:1,3 %>` and provide an argument `['foo' => 'abcdef']`, the filter will get called like this using the arguments provided: `substr('abcdef', 1, 3)`. And the final parsed output will thus be this: `bcd`.
 
 *So far you can specify only one filter per variable declaration, but that will probably change in the future.*
 

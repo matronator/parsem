@@ -204,6 +204,14 @@ final class Parser
                 if ($matches[2][$key] && $matches[2][$key] !== $matches[3][$key]) {
                     $filterWithArgs = explode(':', $matches[2][$key]);
                     $args = explode(',', $filterWithArgs[1]);
+                    $args = array_map(function ($item) {
+                        if (is_numeric($item) && !preg_match('/(\'|")/', $item)) {
+                            return strpos($item, '.') === false ? (int) $item : (float) $item;
+                        } else if (in_array($item, ['false', 'true'])) {
+                            return (bool) $item;
+                        }
+                        return (string) $item;
+                    }, $args);
                     array_unshift($args, $arg);
                 } else {
                     $args = [$arg];
