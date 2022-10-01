@@ -14,7 +14,18 @@ use Symfony\Component\Yaml\Yaml;
 
 final class Parser
 {
-    public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)\|?([a-zA-Z0-9_]+?)?\s?%>/m';
+    // Old pattern for backup
+    // public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)\|?([a-zA-Z0-9_]+?)?\s?%>/m';
+
+    /**
+     * Matches:
+     * 0: <% var|filter:10,'arg','another' %> (full match)
+     * 1: var (only variable name)
+     * 2: filter:10,'arg','another' (filter with args)
+     * 3: filter (only filter name)
+     */
+
+    public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\'|")?\w(?:\'|")?,?)+?)*?)?\s?%>/m';
 
     /**
      * Parses a string, replacing all template variables with the corresponding values passed in `$arguments`.
@@ -189,10 +200,17 @@ final class Parser
         $modified = $arguments;
 
         foreach ($arguments as $key => $arg) {
-            if ($matches[2][$key]) {
-                $function = $matches[2][$key];
+            if ($matches[3][$key]) {
+                if ($matches[2][$key] && $matches[2][$key] !== $matches[3][$key]) {
+                    $filterWithArgs = explode(':', $matches[2][$key]);
+                    $args = explode(',', $filterWithArgs[1]);
+                    array_unshift($args, $arg);
+                } else {
+                    $args = [$arg];
+                }
+                $function = $matches[3][$key];
                 if (function_exists($function)) {
-                    $modified[$key] = $function($arg);
+                    $modified[$key] = $function(...$args);
                 }
             }
         }

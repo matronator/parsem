@@ -27,13 +27,13 @@ class ParserTest extends TestCase
     /** @testCase */
     public function testParseStringTemplate()
     {
-        $string = 'test <% mate %> and with a <%filter|strtoupper%>';
-        $args = ['mate' => 0, 'filter' => 'lol'];
+        $string = 'test <% mate|pow:3 %> and with a <%filter|strtoupper%>';
+        $args = ['mate' => 2, 'filter' => 'lol'];
 
         $parsed = Parser::parseString($string, $args);
 
         Assert::notContains('<%', $parsed, 'All template parameters are parsed.');
-        Assert::equal('test 0 and with a LOL', $parsed, 'Parses correctly.');
+        Assert::equal('test 8 and with a LOL', $parsed, 'Parses correctly.');
     }
 }
 
