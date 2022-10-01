@@ -42,7 +42,7 @@ Enhance your JSON/YAML/NEON files with variables and PHP functions as filters. C
 - Convert JSON, YAML and NEON files to a PHP object
 - Convert any file type to a PHP object by providing a custom parsing function
 - Get all variable placeholders from a string
-- Validate a template file against the [mtrgen-template-schema](https://files.matronator.com/public/mtrgen/latest/mtrgen-template-schema.json)
+- Validate a template file against the [mtrgen-template-schema](https://www.mtrgen.com/storage/schemas/template/latest/mtrgen-template-schema.json)
 
 ## Requirements
 
