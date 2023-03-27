@@ -201,7 +201,8 @@ final class Parser
 
         foreach ($arguments as $key => $arg) {
             if ($matches[3][$key]) {
-                if ($matches[2][$key] && $matches[2][$key] !== $matches[3][$key]) {
+                $filter = $matches[3][$key];
+                if ($matches[2][$key] && $matches[2][$key] !== $filter) {
                     $filterWithArgs = explode(':', $matches[2][$key]);
                     $args = explode(',', $filterWithArgs[1]);
                     $args = array_map(function ($item) {
@@ -216,9 +217,14 @@ final class Parser
                 } else {
                     $args = [$arg];
                 }
-                $function = $matches[3][$key];
-                if (function_exists($function)) {
-                    $modified[$key] = $function(...$args);
+                if (method_exists(Filters::class, $filter)) {
+                    $modified[$key] = Filters::$filter(...$args);
+                } else {
+                    if (function_exists($filter)) {
+                        $modified[$key] = $filter(...$args);
+                    } else {
+                        throw new RuntimeException("Filter function '$filter' does not exist.");
+                    }
                 }
             }
         }

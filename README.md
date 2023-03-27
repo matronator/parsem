@@ -18,8 +18,7 @@ Enhance your JSON/YAML/NEON files with variables and PHP functions as filters. C
   - [Template syntax](#template-syntax)
     - [Variables](#variables)
     - [Filters](#filters)
-      - [Example:](#example)
-      - [Example:](#example-1)
+  - [Built-in filters](#built-in-filters)
   - [Use in code](#use-in-code)
     - [Parse string or file](#parse-string-or-file)
     - [Methods](#methods)
@@ -93,6 +92,40 @@ The first argument will always the variable on which we're declaring the filter,
 > If we have `<% foo|substr:1,3 %>` and provide an argument `['foo' => 'abcdef']`, the filter will get called like this using the arguments provided: `substr('abcdef', 1, 3)`. And the final parsed output will thus be this: `bcd`.
 
 *So far you can specify only one filter per variable declaration, but that will probably change in the future.*
+
+### Built-in filters
+
+There are a few built-in filters that you can use:
+
+`upper` - Converts the variable to uppercase
+
+`lower` - Converts the variable to lowercase
+
+`upperFirst` - Converts the first character of the variable to uppercase
+
+`lowerFirst` - Converts the first character of the variable to lowercase
+
+`first` - Returns the first character of the variable
+
+`last` - Returns the last character of the variable
+
+`camelCase` - Converts the variable to camelCase
+
+`snakeCase` - Converts the variable to snake_case
+
+`kebabCase` - Converts the variable to kebab-case
+
+`pascalCase` - Converts the variable to PascalCase
+
+`titleCase` - Converts the variable to Title Case
+
+`length` - Returns the length of the variable
+
+`reverse` - Reverses the variable
+
+`random` - Returns a random character from the variable
+
+`truncate` - Truncates the variable to the specified length
 
 ### Use in code
 
