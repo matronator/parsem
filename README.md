@@ -126,12 +126,12 @@ echo Parser::parseFileToString('filename.yaml', $arguments);
 ```php
 /**
  * Parses a string, replacing all template variables with the corresponding values passed in `$arguments`.
- * @return mixed The parsed string or the original `$string` value if it's not string
- * @param mixed $string String to parse. If not provided with a string, the function will return this value
+ * @return The parsed string or the original `$string` value if it's not string
+ * @param $string String to parse. If not provided with a string, the function will return this value
  * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
  * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
  */
-Parser::parseString(mixed $string, array $arguments = [], ?string $pattern = null): mixed
+Parser::parseString($string, array $arguments = [], ?string $pattern = null)
 ```
 
 ##### `Parser::parseFile`

@@ -29,12 +29,12 @@ final class Parser
 
     /**
      * Parses a string, replacing all template variables with the corresponding values passed in `$arguments`.
-     * @return mixed The parsed string or the original `$string` value if it's not string
-     * @param mixed $string String to parse. If not provided with a string, the function will return this value
+     * @return The parsed string or the original `$string` value if it's not string
+     * @param $string String to parse. If not provided with a string, the function will return this value
      * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
      * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
      */
-    public static function parseString(mixed $string, array $arguments = [], ?string $pattern = null): mixed
+    public static function parseString($string, array $arguments = [], ?string $pattern = null)
     {
         if (!is_string($string)) return $string;
 
@@ -58,10 +58,10 @@ final class Parser
      */
     public static function parseFile(string $filename, array $arguments = [], ?string $pattern = null): object
     {
-        return self::decodeByExtension($filename, self::parseFileToString($filename, $arguments, $pattern));
+        return self::decodeByExtension($filename, (string) self::parseFileToString($filename, $arguments, $pattern));
     }
 
-    public static function parseFileToString(string $filename, array $arguments = [], ?string $pattern = null): string
+    public static function parseFileToString(string $filename, array $arguments = [], ?string $pattern = null)
     {
         if (!file_exists($filename))
             throw new RuntimeException("File '$filename' does not exist.");
