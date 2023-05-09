@@ -19,13 +19,14 @@ final class Parser
 
     /**
      * Matches:
-     * 0: <% var|filter:10,'arg','another' %> (full match)
-     * 1: var (only variable name)
-     * 2: filter:10,'arg','another' (filter with args)
-     * 3: filter (only filter name)
+     * 0: <% var='default'|filter:10,'arg','another' %> --> (full match)
+     * 1: var                                           --> (only variable name)
+     * 2: ='default'                                    --> (default value)
+     * 3: filter:10,'arg','another'                     --> (filter with args)
+     * 4: filter                                        --> (only filter name)
      */
 
-    public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\'|")?\w(?:\'|")?,?)+?)*?)?\s?%>/m';
+    public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)(=.+?)?\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\'|")?\w(?:\'|")?,?)+?)*?)?\s?%>/m';
 
     /**
      * Parses a string, replacing all template variables with the corresponding values passed in `$arguments`.
@@ -40,8 +41,12 @@ final class Parser
 
         preg_match_all($pattern ?? self::PATTERN, $string, $matches);
         $args = [];
-        foreach ($matches[1] as $match) {
-            $args[] = $arguments[$match] ?? null;
+        foreach ($matches[1] as $key => $match) {
+            if (isset($arguments[$match])) {
+                $args[] = $arguments[$match];
+            } else {
+                $args[] = trim($matches[2][$key], '=') ?? null;
+            }
         }
 
         $args = self::applyFilters($matches, $args);
@@ -200,16 +205,18 @@ final class Parser
         $modified = $arguments;
 
         foreach ($arguments as $key => $arg) {
-            if ($matches[3][$key]) {
-                $filter = $matches[3][$key];
-                if ($matches[2][$key] && $matches[2][$key] !== $filter) {
-                    $filterWithArgs = explode(':', $matches[2][$key]);
+            if ($matches[4][$key]) {
+                $filter = $matches[4][$key];
+                if ($matches[3][$key] && $matches[3][$key] !== $filter) {
+                    $filterWithArgs = explode(':', $matches[3][$key]);
                     $args = explode(',', $filterWithArgs[1]);
                     $args = array_map(function ($item) {
                         if (is_numeric($item) && !preg_match('/(\'|")/', $item)) {
                             return strpos($item, '.') === false ? (int) $item : (float) $item;
                         } else if (in_array($item, ['false', 'true'])) {
                             return (bool) $item;
+                        } else if ($item === 'null') {
+                            return null;
                         }
                         return (string) $item;
                     }, $args);
@@ -217,6 +224,7 @@ final class Parser
                 } else {
                     $args = [$arg];
                 }
+              
                 if (method_exists(Filters::class, $filter)) {
                     $modified[$key] = Filters::$filter(...$args);
                 } else {
