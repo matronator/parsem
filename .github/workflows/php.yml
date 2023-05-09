@@ -30,7 +30,7 @@ jobs:
           ${{ runner.os }}-php-
     
     - name: install mbstring extension
-      run: composer require symfony/polyfill-mbstring
+      run: composer require symfony/polyfill-mbstring && composer require symfony/polyfill-iconv
 
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
