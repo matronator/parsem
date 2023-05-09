@@ -46,6 +46,17 @@ class ParserTest extends TestCase
 
         Assert::equal('bcd', $parsed, 'Filter with arguments parsed correctly.');
     }
+
+    /** @testCase */
+    public function testDefaultFilter()
+    {
+        $string = '<% var|pascalCase %>';
+        $args = ['var' => 'hello world'];
+
+        $parsed = Parser::parseString($string, $args);
+
+        Assert::equal('HelloWorld', $parsed, 'Default filter parsed correctly.');
+    }
 }
 
 (new ParserTest())->run();
