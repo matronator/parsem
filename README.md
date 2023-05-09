@@ -74,6 +74,12 @@ To get syntax highlighting for template files (highlight `<% variable|placeholde
 
 Variables are wrapped in `<%` and `%>` with optional space on either side (both `<%nospace%>` and `<% space %>` are valid) and the name must be an alphanumeric string with optional underscore/s (this regex `[a-zA-Z0-9_]+?`).
 
+#### Default values
+
+Variables can optionally have a default value that will be used if no argument is provided for that variable during parsing. You can specify a default value like this: `<% variable='Default' %>`
+
+If you're going to use filters, the default value comes before the filter, ie.: `<% variable='Default'|filter %>`
+
 #### Filters
 
 You can optionally provide filter to a variable by placing the pipe symbol `|` right after the variable name and the filter right after that (no space around the `|` pipe symbol), like this: `<% variable|filter %>`.
