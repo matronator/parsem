@@ -28,6 +28,9 @@ jobs:
         key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
         restore-keys: |
           ${{ runner.os }}-php-
+    
+    - name: install mbstring extension
+      run: sudo apt-get install php-mbstring
 
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
