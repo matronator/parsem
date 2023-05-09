@@ -26,7 +26,7 @@ final class Parser
      * 4: filter                                        --> (only filter name)
      */
 
-    public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)(=.+?)?\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\'|")?\w(?:\'|")?,?)+?)*?)?\s?%>/m';
+    public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)(=.+?)?\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
 
     /**
      * Parses a string, replacing all template variables with the corresponding values passed in `$arguments`.
@@ -45,7 +45,16 @@ final class Parser
             if (isset($arguments[$match])) {
                 $args[] = $arguments[$match];
             } else {
-                $args[] = trim($matches[2][$key], '=') ?? null;
+                $default = trim($matches[2][$key], '=') ?? null;
+                if (is_numeric($default) && !preg_match('/(\'|"|`)/', $default)) {
+                    $args[] = strpos($default, '.') === false ? (int) $default : (float) $default;
+                } else if (in_array($default, ['false', 'true'])) {
+                    $args[] = (bool) trim($default, '\'"`');
+                } else if ($default === 'null') {
+                    $args[] = null;
+                } else {
+                    $args[] = (string) trim($default, '\'"`\\');
+                }
             }
         }
 
@@ -218,7 +227,7 @@ final class Parser
                         } else if ($item === 'null') {
                             return null;
                         }
-                        return (string) $item;
+                        return (string) trim($item, '\'"`');
                     }, $args);
                     array_unshift($args, $arg);
                 } else {

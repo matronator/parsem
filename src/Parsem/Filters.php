@@ -96,8 +96,8 @@ class Filters
         return $array[array_rand($array)];
     }
 
-    public static function truncate(string $string, int $length): string
+    public static function truncate(string $string, int $length, string $ending = '...'): string
     {
-        return mb_substr($string, 0, $length, static::ENCODING) . '...';
+        return mb_substr($string, 0, $length, static::ENCODING) . $ending;
     }
 }

@@ -33,6 +33,7 @@ class ParserTest extends TestCase
         $parsed = Parser::parseString($string, $args);
 
         Assert::notContains('<%', $parsed, 'All template parameters are parsed.');
+        Assert::notContains('%>', $parsed, 'All template parameters are parsed.');
         Assert::equal('test 8 and with a LOL', $parsed, 'Parses correctly.');
     }
 
@@ -56,6 +57,46 @@ class ParserTest extends TestCase
         $parsed = Parser::parseString($string, $args);
 
         Assert::equal('HelloWorld', $parsed, 'Default filter parsed correctly.');
+    }
+
+    /** @testCase */
+    public function testDefaultValue()
+    {
+        $string = 'Hello <% var="world" %>!';
+        $args = [];
+
+        $parsed = Parser::parseString($string, $args);
+
+        Assert::equal('Hello world!', $parsed, 'Default value parsed correctly.');
+    }
+
+    /** @testCase */
+    public function testIgnoreDefaultValue()
+    {
+        $string = 'Hello <% var="world" %>!';
+        $args = ['var' => 'mate'];
+
+        $parsed = Parser::parseString($string, $args);
+
+        Assert::equal('Hello mate!', $parsed, 'Argument correctly overwrote default value.');
+    }
+
+    /** @testCase */
+    public function testDefaultValueWithFilter()
+    {
+        $string = 'Hello <% var="world"|truncate:2 %>!';
+        $string2 = 'Hello <% var="world"|truncate:2,"" %>!';
+        $string3 = 'Hello <% var=""|truncate:2 %>!';
+        $args = [];
+
+        $parsed = Parser::parseString($string, $args);
+        Assert::equal('Hello wo...!', $parsed, 'Filter applied correctly to default value.');
+        
+        $parsed = Parser::parseString($string2, $args);
+        Assert::equal('Hello wo!', $parsed, 'Filter applied correctly to default value.');
+        
+        $parsed = Parser::parseString($string3, $args);
+        Assert::equal('Hello ...!', $parsed, 'Filter applied correctly to empty default value.');
     }
 }
 
