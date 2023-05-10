@@ -179,7 +179,7 @@ final class Parser
 
     /**
      * Find all (unique) variables in the `$string` template and return them as array with optional default values.
-     * @return array
+     * @return object
      * @param string $string String to parse.
      * @param string|null $pattern $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
      */
