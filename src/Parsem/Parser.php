@@ -45,16 +45,7 @@ final class Parser
             if (isset($arguments[$match])) {
                 $args[] = $arguments[$match];
             } else {
-                $default = trim($matches[2][$key], '=') ?? null;
-                if (is_numeric($default) && !preg_match('/(\'|"|`)/', $default)) {
-                    $args[] = strpos($default, '.') === false ? (int) $default : (float) $default;
-                } else if (in_array($default, ['false', 'true'])) {
-                    $args[] = (bool) trim($default, '\'"`');
-                } else if ($default === 'null') {
-                    $args[] = null;
-                } else {
-                    $args[] = (string) trim($default, '\'"`\\');
-                }
+                $args = self::getDefaultValue($matches[2][$key], $args);
             }
         }
 
@@ -160,9 +151,7 @@ final class Parser
 
         $validator = new Validator();
         $schema = file_get_contents('https://www.mtrgen.com/storage/schemas/template/latest/mtrgen-template-schema.json');
-        $result = $validator->validate($parsed, $schema);
-
-        return $result->isValid();
+        return $validator->validate($parsed, $schema)->isValid();
     }
 
     /**
@@ -185,22 +174,33 @@ final class Parser
 
         $validator = new Validator();
         $schema = file_get_contents('https://www.mtrgen.com/storage/schemas/bundle/latest/mtrgen-bundle-schema.json');
-        $result = $validator->validate($parsed, $schema);
-
-        return $result->isValid();
+        return $validator->validate($parsed, $schema)->isValid();
     }
 
     /**
-     * Find all (unique) variables in the `$string` template and return them as array.
+     * Find all (unique) variables in the `$string` template and return them as array with optional default values.
      * @return array
      * @param string $string String to parse.
      * @param string|null $pattern $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
      */
-    public static function getArguments(string $string, ?string $pattern = null): array
+    public static function getArguments(string $string, ?string $pattern = null): object
     {
         preg_match_all($pattern ?? self::PATTERN, $string, $matches);
 
-        return array_unique($matches[1]);
+        $arguments = static::removeDuplicates($matches[1]);
+        $defaults = [];
+
+        foreach ($matches[1] as $key => $match) {
+            if ($matches[3][$key]) {
+                $defaults = self::getDefaultValue($matches[2][$key], $defaults);
+            }
+        }
+
+        return (object) [
+            'arguments' => $arguments,
+            'all' => $matches[1],
+            'defaults' => $defaults,
+        ];
     }
 
     /**
@@ -220,20 +220,25 @@ final class Parser
                     $filterWithArgs = explode(':', $matches[3][$key]);
                     $args = explode(',', $filterWithArgs[1]);
                     $args = array_map(function ($item) {
-                        if (is_numeric($item) && !preg_match('/(\'|")/', $item)) {
+                        if (is_numeric($item) && !preg_match('/([\'"])/', $item)) {
                             return strpos($item, '.') === false ? (int) $item : (float) $item;
-                        } else if (in_array($item, ['false', 'true'])) {
+                        }
+
+                        if (in_array($item, ['false', 'true'])) {
                             return (bool) $item;
-                        } else if ($item === 'null') {
+                        }
+
+                        if ($item === 'null') {
                             return null;
                         }
+
                         return (string) trim($item, '\'"`');
                     }, $args);
                     array_unshift($args, $arg);
                 } else {
                     $args = [$arg];
                 }
-              
+
                 if (method_exists(Filters::class, $filter)) {
                     $modified[$key] = Filters::$filter(...$args);
                 } else {
@@ -247,5 +252,39 @@ final class Parser
         }
 
         return $modified;
+    }
+
+    private static function removeDuplicates(array $array): array
+    {
+        $uniqueValues = [];
+        foreach ($array as &$value) {
+            if (in_array($value, $uniqueValues)) {
+                $value = null;
+            } else {
+                $uniqueValues[] = $value;
+            }
+        }
+        unset($value);
+        return $array;
+    }
+
+    /**
+     * @param $defaultMatch
+     * @param array $defaults
+     * @return array
+     */
+    private static function getDefaultValue($defaultMatch, array $defaults): array
+    {
+        $default = trim($defaultMatch, '=') ?? null;
+        if (is_numeric($default) && !preg_match('/([\'"`])/', $default)) {
+            $defaults[] = strpos($default, '.') === false ? (int)$default : (float)$default;
+        } else if (in_array($default, ['false', 'true'])) {
+            $defaults[] = (bool)trim($default, '\'"`');
+        } else if ($default === 'null') {
+            $defaults[] = null;
+        } else {
+            $defaults[] = (string)trim($default, '\'"`\\');
+        }
+        return $defaults;
     }
 }
