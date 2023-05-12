@@ -40,17 +40,22 @@ final class Parser
     {
         if (!is_string($string)) return $string;
 
-        preg_match_all($pattern ?? self::PATTERN, $string, $matches);
+        preg_match_all($pattern ?? static::PATTERN, $string, $matches);
         $args = [];
         foreach ($matches[1] as $key => $match) {
             if (isset($arguments[$match])) {
                 $args[] = $arguments[$match];
             } else {
-                $args = self::getDefaultValue($matches[2][$key], $args);
+                $default = static::getDefaultValue($matches[2][$key]);
+                if ($default !== static::LITERALLY_NULL) {
+                    $args[] = $default;
+                } else {
+                    $args[] = null;
+                }
             }
         }
 
-        $args = self::applyFilters($matches, $args);
+        $args = static::applyFilters($matches, $args);
 
         return str_replace($matches[0], $args, $string);
     }
