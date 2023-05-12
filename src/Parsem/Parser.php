@@ -25,8 +25,9 @@ final class Parser
      * 3: filter:10,'arg','another'                     --> (filter with args)
      * 4: filter                                        --> (only filter name)
      */
-
     public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)(=.+?)?\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
+
+    public const LITERALLY_NULL = '__:-LITERALLY_NULL-:__';
 
     /**
      * Parses a string, replacing all template variables with the corresponding values passed in `$arguments`.
@@ -191,8 +192,11 @@ final class Parser
         $defaults = [];
 
         foreach ($matches[1] as $key => $match) {
-            if ($matches[3][$key]) {
-                $defaults = self::getDefaultValue($matches[2][$key], $defaults);
+            if ($matches[2][$key] !== '') {
+                $default = self::getDefaultValue($matches[2][$key]);
+                if ($default !== static::LITERALLY_NULL) {
+                    $defaults[$key] = $default;
+                }
             }
         }
 
@@ -284,18 +288,22 @@ final class Parser
      * @param array $defaults
      * @return array
      */
-    private static function getDefaultValue(string $defaultMatch, array $defaults): array
+    private static function getDefaultValue(string $defaultMatch): mixed
     {
         $default = trim($defaultMatch, '=') ?? null;
-        if (is_numeric($default) && !preg_match('/([\'"`])/', $default)) {
-            $defaults[] = strpos($default, '.') === false ? (int)$default : (float)$default;
-        } else if (in_array($default, ['false', 'true'])) {
-            $defaults[] = (bool)trim($default, '\'"`');
-        } else if ($default === 'null') {
-            $defaults[] = null;
-        } else {
-            $defaults[] = (string)trim($default, '\'"`\\');
+
+        if (!$default) {
+            return static::LITERALLY_NULL;
         }
-        return $defaults;
+
+        if (is_numeric($default) && !preg_match('/([\'"`])/', $default)) {
+            return strpos($default, '.') === false ? (int)$default : (float)$default;
+        } else if (in_array($default, ['false', 'true'])) {
+            return (bool)trim($default, '\'"`');
+        } else if ($default === 'null') {
+            return null;
+        } else {
+            return (string)trim($default, '\'"`\\');
+        }
     }
 }
