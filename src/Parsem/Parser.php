@@ -257,7 +257,7 @@ final class Parser
     {
         preg_match_all($pattern ?? self::PATTERN, $string, $matches);
         foreach ($matches[2] as $match) {
-            if (!$match) {
+            if ($match === '') {
                 return true;
             }
         }
