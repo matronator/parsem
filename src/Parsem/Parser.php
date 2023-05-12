@@ -198,7 +198,6 @@ final class Parser
 
         return (object) [
             'arguments' => $arguments,
-            'all' => $matches[1],
             'defaults' => $defaults,
         ];
     }
@@ -254,6 +253,18 @@ final class Parser
         return $modified;
     }
 
+    public static function needsArguments(string $string, ?string $pattern = null): bool
+    {
+        preg_match_all($pattern ?? self::PATTERN, $string, $matches);
+        foreach ($matches[2] as $match) {
+            if (!$match) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static function removeDuplicates(array $array): array
     {
         $uniqueValues = [];
@@ -269,11 +280,11 @@ final class Parser
     }
 
     /**
-     * @param $defaultMatch
+     * @param string $defaultMatch
      * @param array $defaults
      * @return array
      */
-    private static function getDefaultValue($defaultMatch, array $defaults): array
+    private static function getDefaultValue(string $defaultMatch, array $defaults): array
     {
         $default = trim($defaultMatch, '=') ?? null;
         if (is_numeric($default) && !preg_match('/([\'"`])/', $default)) {
