@@ -1,6 +1,6 @@
 {
     "name": "matronator/parsem",
-    "description": "Parse YAML, JSON and NEON templates.",
+    "description": "Parse file templates.",
     "type": "library",
     "keywords": ["parser", "yaml", "json", "neon", "templates", "template engine", "template parser"],
     "license": "MIT",
