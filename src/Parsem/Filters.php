@@ -98,6 +98,10 @@ class Filters
 
     public static function truncate(string $string, int $length, string $ending = '...'): string
     {
+        if (mb_strlen($string, static::ENCODING) <= $length) {
+            return $string;
+        }
+        
         return mb_substr($string, 0, $length, static::ENCODING) . $ending;
     }
 }
