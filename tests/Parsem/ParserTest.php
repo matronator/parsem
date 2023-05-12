@@ -96,7 +96,7 @@ class ParserTest extends TestCase
         Assert::equal('Hello wo!', $parsed, 'Filter applied correctly to default value.');
         
         $parsed = Parser::parseString($string3, $args);
-        Assert::equal('Hello ...!', $parsed, 'Filter applied correctly to empty default value.');
+        Assert::equal('Hello !', $parsed, 'Filter applied correctly to empty default value.');
     }
 }
 
