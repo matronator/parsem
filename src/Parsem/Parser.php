@@ -156,7 +156,16 @@ final class Parser
         }
 
         $validator = new Validator();
-        $schema = file_get_contents('https://www.mtrgen.com/storage/schemas/template/latest/mtrgen-template-schema.json');
+        try {
+            $schema = file_get_contents('https://www.mtrgen.com/storage/schemas/template/latest/mtrgen-template-schema.json');
+        } catch (Exception $e) {
+            try {
+                $schema = file_get_contents('https://files.matronator.cz/public/mtrgen/latest/mtrgen-template-schema.json');
+            } catch (Exception $e) {
+                throw new RuntimeException("Failed to get template schema from remote server: " . $e->getMessage());
+            }
+        }
+        
         return $validator->validate($parsed, $schema)->isValid();
     }
 
