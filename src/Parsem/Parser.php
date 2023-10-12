@@ -286,15 +286,14 @@ final class Parser
     private static function removeDuplicates(array $array): array
     {
         $uniqueValues = [];
-        foreach ($array as &$value) {
+        foreach ($array as $value) {
             if (in_array($value, $uniqueValues)) {
                 $value = null;
             } else {
                 $uniqueValues[] = $value;
             }
         }
-        unset($value);
-        return $array;
+        return $uniqueValues;
     }
 
     /**
