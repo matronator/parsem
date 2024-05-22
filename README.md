@@ -69,6 +69,30 @@ To get syntax highlighting for template files (highlight `<% variable|placeholde
 
 ### Template syntax
 
+#### Conditions
+
+You can use conditions in your templates by using the `<% if %>` and `<% endif %>` tags. The condition must be a valid PHP expression that will be evaluated and if it returns `true`, the content between the tags will be included in the final output.
+
+To use a variable provided in the arguments array in a condition, you must use the `$` sign before the variable name, like this: `<% if $variable == 'value' %>`. The `$` sign is used to differentiate between the template variable and a keyword such as `true` or `null`.
+
+##### Example:
+
+```yaml
+some:
+  key
+  <% if $variable == 'value' %>
+  with value
+  <% endif %>
+```
+
+If you provide an argument `['variable' => 'value']`, the final output will be this:
+
+```yaml
+some:
+  key
+  with value
+```
+
 #### Variables
 
 Variables are wrapped in `<%` and `%>` with optional space on either side (both `<%nospace%>` and `<% space %>` are valid) and the name must be an alphanumeric string with optional underscore/s (this regex `[a-zA-Z0-9_]+?`).

@@ -98,6 +98,64 @@ class ParserTest extends TestCase
         $parsed = Parser::parseString($string3, $args);
         Assert::equal('Hello !', $parsed, 'Filter applied correctly to empty default value.');
     }
+
+    /** @testCase */
+    public function testSimpleCondition()
+    {
+        $string = '<% if $foo === true %><% bar %> <% endif %>World!';
+        $args = ['foo' => true, 'bar' => 'Hello'];
+        $args2 = ['foo' => false, 'bar' => 'Hello'];
+
+        $parsed = Parser::parseString($string, $args);
+        Assert::equal('Hello World!', $parsed, 'Condition applied correctly to default value.');
+
+        $parsed = Parser::parseString($string, $args2);
+        Assert::equal('World!', $parsed, 'Condition applied correctly to default value.');
+    }
+
+    /** @testCase */
+    public function testNestedConditions()
+    {
+        $string = '<% if $foo === true %>Hello<% if $bar === true %> Cruel<% endif %><% endif %> World!';
+        $args = ['foo' => true, 'bar' => true];
+        $args2 = ['foo' => true, 'bar' => false];
+        $args3 = ['foo' => false, 'bar' => true];
+        $args4 = ['foo' => false, 'bar' => false];
+
+        $parsed = Parser::parseString($string, $args);
+        Assert::equal('Hello Cruel World!', $parsed, 'All are true');
+
+        $parsed = Parser::parseString($string, $args2);
+        Assert::equal('Hello World!', $parsed, 'True and false');
+
+        $parsed = Parser::parseString($string, $args3);
+        Assert::equal(' World!', $parsed, 'False and true');
+
+        $parsed = Parser::parseString($string, $args4);
+        Assert::equal(' World!', $parsed, 'All are false');
+    }
+
+    /** @testCase */
+    public function testNestedNumericConditions()
+    {
+        $string = '<% if $foo === "asdf" %>Hello<% if $bar === 2 %> Cruel<% endif %><% endif %> World!';
+        $args = ['foo' => 'asdf', 'bar' => 2];
+        $args2 = ['foo' => 'asdf', 'bar' => 1];
+        $args3 = ['foo' => 2, 'bar' => 2];
+        $args4 = ['foo' => 2, 'bar' => 1];
+
+        $parsed = Parser::parseString($string, $args);
+        Assert::equal('Hello Cruel World!', $parsed, 'All are true');
+
+        $parsed = Parser::parseString($string, $args2);
+        Assert::equal('Hello World!', $parsed, 'True and false');
+
+        $parsed = Parser::parseString($string, $args3);
+        Assert::equal(' World!', $parsed, 'False and true');
+
+        $parsed = Parser::parseString($string, $args4);
+        Assert::equal(' World!', $parsed, 'All are false');
+    }
 }
 
 (new ParserTest())->run();

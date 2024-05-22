@@ -25,7 +25,19 @@ final class Parser
      * 3: filter:10,'arg','another'                     --> (filter with args)
      * 4: filter                                        --> (only filter name)
      */
-    public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)(=.+?)?\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
+    public const VARIABLE_PATTERN = '/<%\s?([a-zA-Z0-9_]+)(=.+?)?\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
+
+    /**
+     * Matches:
+     * 0: <% if a > 10 %> --> (full match)
+     * 1: a > 10          --> (only condition)
+     * 2: !               --> (negation)
+     * 3: a               --> (left side)
+     * 4: > 10            --> (right side with operator)
+     * 5: >               --> (operator)
+     * 6: 10              --> (right side)
+     */
+    public const CONDITION_PATTERN = '/(?<all><%\s?if\s(?<condition>(?<negation>!?)(?<left>\S+?)\s?(?<right>(?<operator>(?:<=|<|===|==|>=|>|!==|!=))\s?(?<value>.+?))?)\s?%>)/m';
 
     public const LITERALLY_NULL = '__:-LITERALLY_NULL-:__';
 
@@ -40,7 +52,9 @@ final class Parser
     {
         if (!is_string($string)) return $string;
 
-        preg_match_all($pattern ?? static::PATTERN, $string, $matches);
+        $string = self::parseConditions($string, $arguments);
+
+        preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
         $args = [];
         foreach ($matches[1] as $key => $match) {
             if (isset($arguments[$match])) {
@@ -58,6 +72,114 @@ final class Parser
         $args = static::applyFilters($matches, $args);
 
         return str_replace($matches[0], $args, $string);
+    }
+
+    public static function parseConditions(string $string, array $arguments = [], int $offset = 0): string
+    {
+        preg_match(static::CONDITION_PATTERN, $string, $matches, PREG_OFFSET_CAPTURE, $offset);
+        if (!$matches) {
+            return $string;
+        }
+
+        $left = $matches['left'][0];
+        $negation = $matches['negation'][0];
+        $operator = $matches['operator'][0];
+        $right = $matches['value'][0];
+
+        var_dump($matches);
+
+        if (str_starts_with($left, '$')) {
+            $left = substr($left, 1);
+            if (!isset($arguments[$left])) {
+                throw new RuntimeException("Variable '$left' not found in arguments.");
+            }
+
+            if ($negation === '!') {
+                $left = !$arguments[$left];
+            } else {
+                $left = $arguments[$left];
+            }
+        } else {
+            if ((str_starts_with($left, '"') && str_ends_with($left, '"')) || (str_starts_with($left, "'") && str_ends_with($left, "'"))) {
+                $left = substr($left, 1, -1);
+            } else if ($left === 'true') {
+                $left = true;
+            } else if ($left === 'false') {
+                $left = false;
+            } else if ($left === 'null') {
+                $left = null;
+            } else if (str_contains($left, '.')) {
+                $left = floatval($left);
+            } else if (is_numeric($left) && !str_contains($left, '.')) {
+                $left = intval($left);
+            } else {
+                $left = (string)$left;
+            }
+        }
+
+        if (str_starts_with($right, '$')) {
+            $right = substr($right, 1);
+            if (!isset($arguments[$right])) {
+                throw new RuntimeException("Variable '$right' not found in arguments.");
+            }
+
+            $right = $arguments[$right];
+        } else {
+            if ((str_starts_with($right, '"') && str_ends_with($right, '"')) || (str_starts_with($right, "'") && str_ends_with($right, "'"))) {
+                $right = substr($right, 1, -1);
+            } else if ($right === 'true') {
+                $right = true;
+            } else if ($right === 'false') {
+                $right = false;
+            } else if ($right === 'null') {
+                $right = null;
+            } else if (str_contains($right, '.')) {
+                $right = floatval($right);
+            } else if (is_numeric($right) && !str_contains($right, '.')) {
+                $right = intval($right);
+            } else {
+                $right = (string)$right;
+            }
+        }
+
+        echo "Left: $left\n";
+        echo "Operator: $operator\n";
+        echo "Right: $right\n";
+
+        if ($operator === '==') {
+            $result = $left == $right;
+        } elseif ($operator === '===') {
+            $result = $left === $right;
+        } elseif ($operator === '!=') {
+            $result = $left != $right;
+        } elseif ($operator === '!==') {
+            $result = $left !== $right;
+        } elseif ($operator === '<') {
+            $result = $left < $right;
+        } elseif ($operator === '<=') {
+            $result = $left <= $right;
+        } elseif ($operator === '>') {
+            $result = $left > $right;
+        } elseif ($operator === '>=') {
+            $result = $left >= $right;
+        } else {
+            throw new RuntimeException("Unsupported operator '$operator'.");
+        }
+
+        preg_match('/<%\s?endif\s?%>/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
+        if (!$endMatches) {
+            throw new RuntimeException("Missing <% endif %> tag.");
+        }
+
+        $insideBlock = substr($string, $matches[0][1] + strlen($matches[0][0]), $endMatches[0][1] - $matches[0][1] - strlen($matches[0][0]));
+        $string = substr_replace($string, $result ? $insideBlock : '', (int)$matches[0][1], $endMatches[0][1] - $matches[0][1] + strlen($endMatches[0][0]));
+
+        preg_match(static::CONDITION_PATTERN, $string, $matches, PREG_OFFSET_CAPTURE, $offset);
+        if (!$matches) {
+            return $string;
+        }
+
+        return self::parseConditions($string, $arguments, (int)$matches[0][1]);
     }
 
     /**
@@ -123,7 +245,7 @@ final class Parser
     }
 
     /**
-     * Parse a file of any type to object using a cutom provided parser function.
+     * Parse a file of any type to object using a custom provided parser function.
      * @return object
      * @param string $filename
      * @param callable $function The parsing function with the following signature `function(string $contents): object` where `$contents` will be the string content of `$filename`.
@@ -200,7 +322,7 @@ final class Parser
      */
     public static function getArguments(string $string, ?string $pattern = null): object
     {
-        preg_match_all($pattern ?? self::PATTERN, $string, $matches);
+        preg_match_all($pattern ?? self::VARIABLE_PATTERN, $string, $matches);
 
         $arguments = static::removeDuplicates($matches[1]);
         $defaults = [];
@@ -240,11 +362,9 @@ final class Parser
                         if (is_numeric($item) && !preg_match('/([\'"])/', $item)) {
                             return strpos($item, '.') === false ? (int) $item : (float) $item;
                         }
-
                         if (in_array($item, ['false', 'true'])) {
                             return (bool) $item;
                         }
-
                         if ($item === 'null') {
                             return null;
                         }
@@ -273,7 +393,7 @@ final class Parser
 
     public static function needsArguments(string $string, ?string $pattern = null): bool
     {
-        preg_match_all($pattern ?? self::PATTERN, $string, $matches);
+        preg_match_all($pattern ?? self::VARIABLE_PATTERN, $string, $matches);
         foreach ($matches[2] as $match) {
             if ($match === '') {
                 return true;
