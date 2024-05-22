@@ -36,6 +36,7 @@ Enhance your JSON/YAML/NEON files with variables and PHP functions as filters. C
 - Parse string templates to string
   - Replace variable placeholders with provided arguments
   - Apply filter functions to variables
+  - Use `<% if %>` blocks to conditionally parse the template
 - Parse template files to string
   - Parse the entire file as a string regardless of extension
 - Provide a custom regex pattern to parse functions to use a custom syntax
