@@ -49,7 +49,7 @@ Enhance your JSON/YAML/NEON files with variables and PHP functions as filters. C
 
 ## Requirements
 
-- PHP >= 7.4
+- PHP >= 8.2
 - Composer
 
 ## Installation
