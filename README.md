@@ -17,12 +17,9 @@ Enhance your JSON/YAML/NEON files with variables and PHP functions as filters. C
 - [Usage](#usage)
   - [Template syntax](#template-syntax)
     - [Conditions](#conditions)
-      - [Example:](#example)
     - [Variables](#variables)
-    - [Default values](#default-values)
+       - [Default values](#default-values)
     - [Filters](#filters)
-      - [Example:](#example-1)
-      - [Example:](#example-2)
   - [Built-in filters](#built-in-filters)
   - [Use in code](#use-in-code)
     - [Parse string or file](#parse-string-or-file)
@@ -39,6 +36,7 @@ Enhance your JSON/YAML/NEON files with variables and PHP functions as filters. C
 - Parse string templates to string
   - Replace variable placeholders with provided arguments
   - Apply filter functions to variables
+  - Use `<% if %>` blocks to conditionally parse the template
 - Parse template files to string
   - Parse the entire file as a string regardless of extension
 - Provide a custom regex pattern to parse functions to use a custom syntax
@@ -49,7 +47,7 @@ Enhance your JSON/YAML/NEON files with variables and PHP functions as filters. C
 
 ## Requirements
 
-- PHP >= 7.4
+- PHP >= 8.2
 - Composer
 
 ## Installation
@@ -102,7 +100,7 @@ some:
 
 Variables are wrapped in `<%` and `%>` with optional space on either side (both `<%nospace%>` and `<% space %>` are valid) and the name must be an alphanumeric string with optional underscore/s (this regex `[a-zA-Z0-9_]+?`).
 
-#### Default values
+##### Default values
 
 Variables can optionally have a default value that will be used if no argument is provided for that variable during parsing. You can specify a default value like this: `<% variable='Default' %>`
 
