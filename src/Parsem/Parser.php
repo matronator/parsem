@@ -86,8 +86,6 @@ final class Parser
         $operator = $matches['operator'][0];
         $right = $matches['value'][0];
 
-        var_dump($matches);
-
         if (str_starts_with($left, '$')) {
             $left = substr($left, 1);
             if (!isset($arguments[$left])) {
@@ -141,10 +139,6 @@ final class Parser
                 $right = (string)$right;
             }
         }
-
-        echo "Left: $left\n";
-        echo "Operator: $operator\n";
-        echo "Right: $right\n";
 
         if ($operator === '==') {
             $result = $left == $right;
