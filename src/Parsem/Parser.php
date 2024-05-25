@@ -46,9 +46,10 @@ final class Parser
      * @return mixed The parsed string or the original `$string` value if it's not string
      * @param mixed $string String to parse. If not provided with a string, the function will return this value
      * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
+     * @param bool $strict [optional] If set to `true`, the function will throw an exception if a variable is not found in the `$arguments` array. If set to `false` null will be used.
      * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
      */
-    public static function parseString(mixed $string, array $arguments = [], ?string $pattern = null): mixed
+    public static function parseString(mixed $string, array $arguments = [], bool $strict = true, ?string $pattern = null): mixed
     {
         if (!is_string($string)) return $string;
 
@@ -64,6 +65,10 @@ final class Parser
                 if ($default !== static::LITERALLY_NULL) {
                     $args[] = $default;
                 } else {
+                    if ($strict) {
+                        throw new RuntimeException("Variable '$match' not found in arguments.");
+                    }
+
                     $args[] = null;
                 }
             }
@@ -211,7 +216,7 @@ final class Parser
             throw new RuntimeException("File '$filename' does not exist.");
 
         $contents = file_get_contents($filename);
-        return self::parseString($contents, $arguments, $pattern);
+        return self::parseString($contents, $arguments, false, $pattern);
     }
 
     /**
@@ -430,7 +435,7 @@ final class Parser
     /**
      * @param string $defaultMatch
      * @param array $defaults
-     * @return array
+     * @return mixed
      */
     private static function getDefaultValue(string $defaultMatch): mixed
     {
@@ -442,12 +447,14 @@ final class Parser
 
         if (is_numeric($default) && !preg_match('/([\'"`])/', $default)) {
             return strpos($default, '.') === false ? (int)$default : (float)$default;
+        } else if ((str_starts_with($default, '"') && str_ends_with($default, '"')) || (str_starts_with($default, "'") && str_ends_with($default, "'"))) {
+            return (string) trim($default, '\'"`');
         } else if (in_array($default, ['false', 'true'])) {
-            return (bool)trim($default, '\'"`');
+            return (bool) $default;
         } else if ($default === 'null') {
             return null;
         } else {
-            return (string)trim($default, '\'"`\\');
+            return $default;
         }
     }
 }
