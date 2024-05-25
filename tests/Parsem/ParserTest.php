@@ -156,6 +156,42 @@ class ParserTest extends TestCase
         $parsed = Parser::parseString($string, $args4);
         Assert::equal(' World!', $parsed, 'All are false');
     }
+
+    /** @testCase */
+    public function testNewLines()
+    {
+        $string = <<<EOT
+        Hello
+        <% if false %>
+        Amazing
+        <% endif %>
+        World!
+        EOT;
+
+        $expected = <<<EOT
+        Hello
+        World!
+        EOT;
+
+        $string2 = <<<EOT
+        Hello
+        <% if true %>
+        Amazing
+        <% endif %>
+        World!
+        EOT;
+
+        $expected2 = <<<EOT
+        Hello
+        Amazing
+        World!
+        EOT;
+
+        $parsed = Parser::parseString($string, []);
+        $parsed2 = Parser::parseString($string2, []);
+        Assert::equal($expected, $parsed, '(false) New lines are ignored.');
+        Assert::equal($expected2, $parsed2, '(true) New lines are ignored.');
+    }
 }
 
 (new ParserTest())->run();

@@ -37,7 +37,7 @@ final class Parser
      * 5: >               --> (operator)
      * 6: 10              --> (right side)
      */
-    public const CONDITION_PATTERN = '/(?<all><%\s?if\s(?<condition>(?<negation>!?)(?<left>\S+?)\s?(?<right>(?<operator>(?:<=|<|===|==|>=|>|!==|!=))\s?(?<value>.+?))?)\s?%>)/m';
+    public const CONDITION_PATTERN = '/(?<all><%\s?if\s(?<condition>(?<negation>!?)(?<left>\S+?)\s?(?<right>(?<operator>(?:<=|<|===|==|>=|>|!==|!=))\s?(?<value>.+?))?)\s?%>\n?)/m';
 
     public const LITERALLY_NULL = '__:-LITERALLY_NULL-:__';
 
@@ -82,9 +82,9 @@ final class Parser
         }
 
         $left = $matches['left'][0];
-        $negation = $matches['negation'][0];
-        $operator = $matches['operator'][0];
-        $right = $matches['value'][0];
+        $negation = $matches['negation'][0] ?? null;
+        $operator = $matches['operator'][0] ?? null;
+        $right = $matches['value'][0] ?? null;
 
         if (str_starts_with($left, '$')) {
             $left = substr($left, 1);
@@ -115,52 +115,69 @@ final class Parser
             }
         }
 
-        if (str_starts_with($right, '$')) {
-            $right = substr($right, 1);
-            if (!isset($arguments[$right])) {
-                throw new RuntimeException("Variable '$right' not found in arguments.");
-            }
+        if (isset($right)) {
+            $rightNegated = false;
 
-            $right = $arguments[$right];
-        } else {
-            if ((str_starts_with($right, '"') && str_ends_with($right, '"')) || (str_starts_with($right, "'") && str_ends_with($right, "'"))) {
-                $right = substr($right, 1, -1);
-            } else if ($right === 'true') {
-                $right = true;
-            } else if ($right === 'false') {
-                $right = false;
-            } else if ($right === 'null') {
-                $right = null;
-            } else if (str_contains($right, '.')) {
-                $right = floatval($right);
-            } else if (is_numeric($right) && !str_contains($right, '.')) {
-                $right = intval($right);
+            if (str_starts_with($right, '!')) {
+                $rightNegated = true;
+                $right = substr($right, 1);
+            }
+    
+            if (str_starts_with($right, '$')) {
+                $right = substr($right, 1);
+                if (!isset($arguments[$right])) {
+                    throw new RuntimeException("Variable '$right' not found in arguments.");
+                }
+    
+                $right = $arguments[$right];
             } else {
-                $right = (string)$right;
+                if ((str_starts_with($right, '"') && str_ends_with($right, '"')) || (str_starts_with($right, "'") && str_ends_with($right, "'"))) {
+                    $right = substr($right, 1, -1);
+                } else if ($right === 'true') {
+                    $right = true;
+                } else if ($right === 'false') {
+                    $right = false;
+                } else if ($right === 'null') {
+                    $right = null;
+                } else if (str_contains($right, '.')) {
+                    $right = floatval($right);
+                } else if (is_numeric($right) && !str_contains($right, '.')) {
+                    $right = intval($right);
+                } else {
+                    $right = (string)$right;
+                }
             }
-        }
 
-        if ($operator === '==') {
-            $result = $left == $right;
-        } elseif ($operator === '===') {
-            $result = $left === $right;
-        } elseif ($operator === '!=') {
-            $result = $left != $right;
-        } elseif ($operator === '!==') {
-            $result = $left !== $right;
-        } elseif ($operator === '<') {
-            $result = $left < $right;
-        } elseif ($operator === '<=') {
-            $result = $left <= $right;
-        } elseif ($operator === '>') {
-            $result = $left > $right;
-        } elseif ($operator === '>=') {
-            $result = $left >= $right;
+            if ($rightNegated) {
+                $right = !$right;
+            }
+
+            if ($operator === '==') {
+                $result = $left == $right;
+            } elseif ($operator === '===') {
+                $result = $left === $right;
+            } elseif ($operator === '!=') {
+                $result = $left != $right;
+            } elseif ($operator === '!==') {
+                $result = $left !== $right;
+            } elseif ($operator === '<') {
+                $result = $left < $right;
+            } elseif ($operator === '<=') {
+                $result = $left <= $right;
+            } elseif ($operator === '>') {
+                $result = $left > $right;
+            } elseif ($operator === '>=') {
+                $result = $left >= $right;
+            } else if (!isset($operator)) {
+                $result = $left;
+            } else {
+                throw new RuntimeException("Unsupported operator '$operator'.");
+            }
         } else {
-            throw new RuntimeException("Unsupported operator '$operator'.");
+            $result = $left;
         }
 
-        preg_match('/<%\s?endif\s?%>/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
+        preg_match('/<%\s?endif\s?%>\n?/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
         if (!$endMatches) {
             throw new RuntimeException("Missing <% endif %> tag.");
         }
