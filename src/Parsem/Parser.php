@@ -12,20 +12,22 @@ use RuntimeException;
 use SplFileObject;
 use Symfony\Component\Yaml\Yaml;
 
+/**
+ * Class Parser
+ * @package Matronator\Parsem
+ * @author Matronator <info@matronator.cz>
+ */
 final class Parser
 {
-    // Old pattern for backup
-    // public const PATTERN = '/<%\s?([a-zA-Z0-9_]+)\|?([a-zA-Z0-9_]+?)?\s?%>/m';
-
     /**
      * Matches:
      * 0: <% var='default'|filter:10,'arg','another' %> --> (full match)
      * 1: var                                           --> (only variable name)
      * 2: ='default'                                    --> (default value)
-     * 3: filter:10,'arg','another'                     --> (filter with args)
+     * 3: |filter:10,'arg','another'                     --> (filter with args)
      * 4: filter                                        --> (only filter name)
      */
-    public const VARIABLE_PATTERN = '/<%\s?((?!endif|else)[a-zA-Z0-9_]+)(=.+?)?\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
+    public const string VARIABLE_PATTERN = '/<%\s?((?!endif|else)[a-zA-Z0-9_]+)(=.*?)?(\|([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
 
     /**
      * Matches:
@@ -37,9 +39,29 @@ final class Parser
      * 5: >               --> (operator)
      * 6: 10              --> (right side)
      */
-    public const CONDITION_PATTERN = '/(?<all><%\s?if\s(?<condition>(?<negation>!?)(?<left>\S+?)\s?(?<right>(?<operator>(?:<=|<|===|==|>=|>|!==|!=))\s?(?<value>.+?))?)\s?%>\n?)/m';
+    public const string CONDITION_PATTERN = '/(?<all><%\s?if\s(?<condition>(?<negation>!?)(?<left>\S+?)\s?(?<right>(?<operator>(?:<=|<|===|==|>=|>|!==|!=))\s?(?<value>.+?))?)\s?%>\n?)/m';
 
-    public const LITERALLY_NULL = '__:-LITERALLY_NULL-:__';
+    /** @internal */
+    private const string LITERALLY_NULL = '⚠︎__:-␀LITERALLY_NULL␀-:__⚠︎';
+
+    /**
+     * Parses a file to a PHP object, replacing all template variables with the provided `$arguments` values.
+     * @since 3.2.0
+     * @return string The parsed string
+     * @param string $filename File to parse
+     * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
+     * @param bool $strict [optional] If set to `true`, the function will throw an exception if a variable is not found in the `$arguments` array. If set to `false` null will be used.
+     * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
+     * @throws RuntimeException If the file does not exist
+     */
+    public static function parse(string $filename, array $arguments = [], bool $strict = true, ?string $pattern = null): string
+    {
+        if (!file_exists($filename))
+            throw new RuntimeException("File '$filename' does not exist.");
+
+        $contents = file_get_contents($filename);
+        return static::parseString($contents, $arguments, $strict, $pattern);
+    }
 
     /**
      * Parses a string, replacing all template variables with the corresponding values passed in `$arguments`.
@@ -48,12 +70,13 @@ final class Parser
      * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
      * @param bool $strict [optional] If set to `true`, the function will throw an exception if a variable is not found in the `$arguments` array. If set to `false` null will be used.
      * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
+     * @throws RuntimeException If a variable is not found in the `$arguments` array and `$strict` is set to `true`
      */
     public static function parseString(mixed $string, array $arguments = [], bool $strict = true, ?string $pattern = null): mixed
     {
         if (!is_string($string)) return $string;
 
-        $string = self::parseConditions($string, $arguments);
+        $string = static::parseConditions($string, $arguments);
 
         preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
         $args = [];
@@ -79,169 +102,62 @@ final class Parser
         return str_replace($matches[0], $args, $string);
     }
 
-    public static function parseConditions(string $string, array $arguments = [], int $offset = 0): string
+    /**
+     * Parses a string, replacing all conditional blocks (`<% if ... %>...<% else %>...<% endif %>`) depending on the result of the condition.
+     * @return string The parsed string
+     * @param string $string String to parse
+     * @param array $arguments Array of arguments from the template
+     * @param int $offset [optional] Offset to start searching for the condition from
+     * @param string|null $pattern [optional] You can provide custom regex for the `<% if %>` tag syntax.
+     */
+    public static function parseConditions(string $string, array $arguments = [], int $offset = 0, ?string $pattern = null): string
     {
-        preg_match(static::CONDITION_PATTERN, $string, $matches, PREG_OFFSET_CAPTURE, $offset);
+        preg_match($pattern ?? static::CONDITION_PATTERN, $string, $matches, PREG_OFFSET_CAPTURE, $offset);
         if (!$matches) {
             return $string;
         }
 
         $result = static::getConditionResult($matches, $arguments);
 
-        $conditionStart = $matches[0][1];
+        $conditionStart = (int)$matches[0][1];
         $conditionLength = strlen($matches[0][0]);
-
-        $nestedIfs = preg_match_all(static::CONDITION_PATTERN, $string, $nestedMatches, PREG_OFFSET_CAPTURE, $offset + $conditionLength);
-        if ($nestedIfs > 0) {
-            $string = self::parseConditions($string, $arguments, (int)$conditionStart + (int)$conditionLength, $offset);
-        }
+        $insideBlockStart = $conditionStart + $conditionLength;
 
         $hasElse = false;
-
         $elseCount = preg_match('/<%\s?else\s?%>\n?/', $string, $elseMatches, PREG_OFFSET_CAPTURE, $offset);
         if ($elseCount !== false && $elseCount === 1 && $elseMatches) {
             $hasElse = true;
-            preg_match('/<%\s?endif\s?%>\n?/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
-            if (!$endMatches) {
-                throw new RuntimeException("Missing <% endif %> tag.");
-            }
-
-            $elseStart = $elseMatches[0][1];
+            $elseStart = (int) $elseMatches[0][1];
             $elseTagLength = strlen($elseMatches[0][0]);
-            $conditionEnd = $endMatches[0][1];
-
-            $elseBlock = substr($string, $elseStart + $elseTagLength, $conditionEnd - $elseStart - $elseTagLength);
+            $elseBlock = static::parseElseTag($string, $elseStart, $elseTagLength, $arguments, $offset);
         } else if ($elseCount > 1) {
             throw new RuntimeException("Too many <% else %> tags.");
+        } else {
+            $string = static::parseNestedIfs($string, $arguments, $offset + $conditionLength, $insideBlockStart);
         }
 
         preg_match('/<%\s?endif\s?%>\n?/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
         if (!$endMatches) {
             throw new RuntimeException("Missing <% endif %> tag.");
         }
-
         
+        $conditionEnd = $endMatches[0][1];
+        $replaceLength = $conditionEnd - $conditionStart + strlen($endMatches[0][0]);
+
         if ($hasElse) {
-            $conditionEnd = $endMatches[0][1];
-            $insideBlock = substr($string, $conditionStart + $conditionLength, $elseStart - $conditionStart - $conditionLength);
-            $string = substr_replace($string, $result ? $insideBlock : $elseBlock, (int)$conditionStart, $conditionEnd - $conditionStart + strlen($endMatches[0][0]));
+            $insideBlock = substr($string, $insideBlockStart, $elseStart - $insideBlockStart);
+            $string = substr_replace($string, $result ? $insideBlock : $elseBlock, $conditionStart, $replaceLength);
         } else {
-            $conditionEnd = $endMatches[0][1];
-            $insideBlock = substr($string, $conditionStart + $conditionLength, $conditionEnd - $conditionStart - $conditionLength);
-            $string = substr_replace($string, $result ? $insideBlock : '', (int)$conditionStart, $conditionEnd - $conditionStart + strlen($endMatches[0][0]));
+            $insideBlock = substr($string, $insideBlockStart, $conditionEnd - $insideBlockStart);
+            $string = substr_replace($string, $result ? $insideBlock : '', $conditionStart, $replaceLength);
         }
 
-        preg_match(static::CONDITION_PATTERN, $string, $matches, PREG_OFFSET_CAPTURE, $offset);
-        if (!$matches) {
-            return $string;
-        }
-
-        return self::parseConditions($string, $arguments, (int)$conditionStart);
-    }
-
-    public static function getConditionResult(array $matches, array $arguments = []): bool
-    {
-        $left = $matches['left'][0];
-        $negation = $matches['negation'][0] ?? null;
-        $operator = $matches['operator'][0] ?? null;
-        $right = $matches['value'][0] ?? null;
-
-        if (str_starts_with($left, '$')) {
-            $left = substr($left, 1);
-            if (!isset($arguments[$left])) {
-                throw new RuntimeException("Variable '$left' not found in arguments.");
-            }
-
-            if ($negation === '!') {
-                $left = !$arguments[$left];
-            } else {
-                $left = $arguments[$left];
-            }
-        } else {
-            if ((str_starts_with($left, '"') && str_ends_with($left, '"')) || (str_starts_with($left, "'") && str_ends_with($left, "'"))) {
-                $left = substr($left, 1, -1);
-            } else if ($left === 'true') {
-                $left = true;
-            } else if ($left === 'false') {
-                $left = false;
-            } else if ($left === 'null') {
-                $left = null;
-            } else if (str_contains($left, '.')) {
-                $left = floatval($left);
-            } else if (is_numeric($left) && !str_contains($left, '.')) {
-                $left = intval($left);
-            } else {
-                $left = (string)$left;
-            }
-        }
-
-        if (isset($right)) {
-            $rightNegated = false;
-
-            if (str_starts_with($right, '!')) {
-                $rightNegated = true;
-                $right = substr($right, 1);
-            }
-    
-            if (str_starts_with($right, '$')) {
-                $right = substr($right, 1);
-                if (!isset($arguments[$right])) {
-                    throw new RuntimeException("Variable '$right' not found in arguments.");
-                }
-    
-                $right = $arguments[$right];
-            } else {
-                if ((str_starts_with($right, '"') && str_ends_with($right, '"')) || (str_starts_with($right, "'") && str_ends_with($right, "'"))) {
-                    $right = substr($right, 1, -1);
-                } else if ($right === 'true') {
-                    $right = true;
-                } else if ($right === 'false') {
-                    $right = false;
-                } else if ($right === 'null') {
-                    $right = null;
-                } else if (str_contains($right, '.')) {
-                    $right = floatval($right);
-                } else if (is_numeric($right) && !str_contains($right, '.')) {
-                    $right = intval($right);
-                } else {
-                    $right = (string)$right;
-                }
-            }
-
-            if ($rightNegated) {
-                $right = !$right;
-            }
-
-            if ($operator === '==') {
-                $result = $left == $right;
-            } elseif ($operator === '===') {
-                $result = $left === $right;
-            } elseif ($operator === '!=') {
-                $result = $left != $right;
-            } elseif ($operator === '!==') {
-                $result = $left !== $right;
-            } elseif ($operator === '<') {
-                $result = $left < $right;
-            } elseif ($operator === '<=') {
-                $result = $left <= $right;
-            } elseif ($operator === '>') {
-                $result = $left > $right;
-            } elseif ($operator === '>=') {
-                $result = $left >= $right;
-            } else if (!isset($operator)) {
-                $result = $left;
-            } else {
-                throw new RuntimeException("Unsupported operator '$operator'.");
-            }
-        } else {
-            $result = $left;
-        }
-
-        return $result;
+        return static::parseConditions($string, $arguments, $conditionStart);
     }
 
     /**
      * Converts a YAML, JSON or NEON file to a corresponding PHP object, replacing all template variables with the provided `$arguments` values.
+     * @deprecated 3.2.0 __Will be removed in the next version.__ This was used for parsing JSON/YAML/NEON templates in v1 and is no longer needed in v2 and later.
      * @return object
      * @param string $filename
      * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
@@ -249,20 +165,29 @@ final class Parser
      */
     public static function parseFile(string $filename, array $arguments = [], ?string $pattern = null): object
     {
-        return self::decodeByExtension($filename, self::parseFileToString($filename, $arguments, $pattern));
+        return static::decodeByExtension($filename, static::parseFileToString($filename, $arguments, $pattern));
     }
 
+    /**
+     * Parses a file to a string, replacing all template variables with the provided `$arguments` values.
+     * @deprecated 3.2.0 Use {@see Parser::parse()} instead
+     * @return string The parsed string
+     * @param string $filename
+     * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
+     * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
+     */
     public static function parseFileToString(string $filename, array $arguments = [], ?string $pattern = null): string
     {
         if (!file_exists($filename))
             throw new RuntimeException("File '$filename' does not exist.");
 
         $contents = file_get_contents($filename);
-        return self::parseString($contents, $arguments, false, $pattern);
+        return static::parseString($contents, $arguments, false, $pattern);
     }
 
     /**
      * Converts a YAML, JSON or NEON file to a corresponding PHP object.
+     * @deprecated 3.2.0 __Will be removed in the next version.__ This was used for parsing JSON/YAML/NEON templates in v1 and is no longer needed in v2 and later.
      * @return object
      * @param string $filename
      * @param string|null $contents [optional] You can also provide the file's content as a string, but you still have to provide a `$filename` to know which format to parse (YAML, JSON or NEON).
@@ -304,6 +229,7 @@ final class Parser
 
     /**
      * Parse a file of any type to object using a custom provided parser function.
+     * @deprecated 3.2.O __Will be removed in the next version.__ This was used for parsing JSON/YAML/NEON templates in v1 and is no longer needed in v2 and later.
      * @return object
      * @param string $filename
      * @param callable $function The parsing function with the following signature `function(string $contents): object` where `$contents` will be the string content of `$filename`.
@@ -318,7 +244,7 @@ final class Parser
         if (!is_callable($function))
             throw new InvalidArgumentException("Argument \$function is not callable.");
 
-        return $function(self::parseFileToString($filename, $arguments, $pattern));
+        return $function(static::parseFileToString($filename, $arguments, $pattern));
     }
 
     /**
@@ -326,11 +252,12 @@ final class Parser
      * @return boolean True if the file is a valid template, false otherwise.
      * @param string $filename
      * @param string|null $contents [optional] You can also provide the file's content as a string, but you still have to provide a `$filename` to know which format to parse (YAML, JSON or NEON).
+     * @deprecated 3.2.0 __Will be removed in the next version.__ This was used for checking JSON/YAML/NEON templates in v1 and is no longer needed in v2 and later.
      */
     public static function isValid(string $filename, ?string $contents = null): bool
     {
         try {
-            $parsed = self::decodeByExtension($filename, $contents);
+            $parsed = static::decodeByExtension($filename, $contents);
         } catch (Exception $e) {
             return false;
         }
@@ -362,7 +289,7 @@ final class Parser
         }
 
         try {
-            $parsed = self::decodeByExtension($filename, $contents);
+            $parsed = static::decodeByExtension($filename, $contents);
         } catch (Exception $e) {
             return false;
         }
@@ -374,20 +301,20 @@ final class Parser
 
     /**
      * Find all (unique) variables in the `$string` template and return them as array with optional default values.
-     * @return object
+     * @return object{arguments: array, defaults: array}
      * @param string $string String to parse.
      * @param string|null $pattern $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
      */
     public static function getArguments(string $string, ?string $pattern = null): object
     {
-        preg_match_all($pattern ?? self::VARIABLE_PATTERN, $string, $matches);
+        preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
 
         $arguments = static::removeDuplicates($matches[1]);
         $defaults = [];
 
         foreach ($matches[1] as $key => $match) {
             if ($matches[2][$key] !== '') {
-                $default = self::getDefaultValue($matches[2][$key]);
+                $default = static::getDefaultValue($matches[2][$key]);
                 if ($default !== static::LITERALLY_NULL) {
                     $defaults[$key] = $default;
                 }
@@ -413,6 +340,7 @@ final class Parser
         foreach ($arguments as $key => $arg) {
             if ($matches[4][$key]) {
                 $filter = $matches[4][$key];
+                $matches[3][$key] = ltrim($matches[3][$key], '|');
                 if ($matches[3][$key] && $matches[3][$key] !== $filter) {
                     $filterWithArgs = explode(':', $matches[3][$key]);
                     $args = explode(',', $filterWithArgs[1]);
@@ -449,9 +377,15 @@ final class Parser
         return $modified;
     }
 
+    /**
+     * Check if the `$string` template needs any arguments to be parsed.
+     * @return boolean True if the template needs arguments, false otherwise.
+     * @param string $string String to parse.
+     * @param string|null $pattern $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
+     */
     public static function needsArguments(string $string, ?string $pattern = null): bool
     {
-        preg_match_all($pattern ?? self::VARIABLE_PATTERN, $string, $matches);
+        preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
         foreach ($matches[2] as $match) {
             if ($match === '') {
                 return true;
@@ -459,6 +393,177 @@ final class Parser
         }
 
         return false;
+    }
+
+    /**
+     * Get the result of the condition.
+     * @param array $matches The matches array from a `preg_match` function
+     * @param array $arguments Array with the arguments (variables) from the template
+     * @return bool The result of the condition
+     */
+    protected static function getConditionResult(array $matches, array $arguments = []): bool
+    {
+        $left = $matches['left'][0];
+        $negation = $matches['negation'][0] ?? null;
+        $operator = $matches['operator'][0] ?? null;
+        $right = $matches['value'][0] ?? null;
+
+        $left = static::transformConditionValue($left, $arguments);
+        if ($negation === '!') {
+            $left = !$left;
+        }
+        
+        if (isset($right)) {
+            $right = static::transformConditionValue($right, $arguments);
+            $result = static::getResultByOperator($left, $operator, $right);
+        } else {
+            $result = $left;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Transform the value of a condition to the correct type.
+     * @param string $value The value to transform
+     * @param array $arguments Array with the arguments (variables) from the template
+     * @return mixed The transformed value
+     */
+    protected static function transformConditionValue(string $value, array $arguments = []): mixed
+    {
+        $valueNegated = false;
+        if (str_starts_with($value, '!')) {
+            $valueNegated = true;
+            $value = substr($value, 1);
+        }
+
+        if (str_starts_with($value, '$')) {
+            $value = substr($value, 1);
+            if (!array_key_exists($value, $arguments)) {
+                throw new RuntimeException("Variable '$value' not found in arguments.");
+            }
+
+            $value = $arguments[$value];
+        } else {
+            $value = static::convertArgumentType($value);
+        }
+
+        return $valueNegated ? !$value : $value;
+    }
+
+    /**
+     * Convert the argument value to the correct type.
+     * @param string $value The value to convert
+     * @return mixed The converted value
+     */
+    protected static function convertArgumentType(string $value): mixed
+    {
+        if ((str_starts_with($value, '"') && str_ends_with($value, '"')) || (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
+            return substr($value, 1, -1);
+        } else if ($value === 'true') {
+            return true;
+        } else if ($value === 'false') {
+            return false;
+        } else if ($value === 'null') {
+            return null;
+        } else if (str_contains($value, '.')) {
+            return floatval($value);
+        } else if (is_numeric($value) && !str_contains($value, '.')) {
+            return intval($value);
+        }
+
+        return (string)$value;
+    }
+
+    /**
+     * Get the result of the comparison between the left and right values using the operator.
+     * @param mixed $left The left side of the comparison
+     * @param string|null $operator The operator to use for the comparison
+     * @param mixed $right The right side of the comparison
+     * @return bool The result of the comparison
+     */
+    protected static function getResultByOperator(mixed $left, ?string $operator, mixed $right): bool
+    {
+        switch ($operator) {
+            case '==':
+                return $left == $right;
+            case '===':
+                return $left === $right;
+            case '!=':
+                return $left != $right;
+            case '!==':
+                return $left !== $right;
+            case '<':
+                return $left < $right;
+            case '<=':
+                return $left <= $right;
+            case '>':
+                return $left > $right;
+            case '>=':
+                return $left >= $right;
+            case null:
+                return $left;
+            default:
+                throw new RuntimeException("Unsupported operator '$operator'.");
+        }
+    }
+
+    /**
+     * Parse the else block of the condition.
+     * @param string &$string The string to parse (by reference - will be modified in place)
+     * @param int $elseStart The position of the else tag in the string
+     * @param int $elseTagLength The length of the else tag
+     * @param array $arguments Array with the arguments (variables) from the template
+     * @param int $offset Offset to start replacing the condition from
+     * @return string The parsed else block
+     */
+    protected static function parseElseTag(string &$string, int $elseStart, int $elseTagLength, array $arguments = [], $offset = 0): string
+    {
+        $string = static::parseNestedIfs($string, $arguments, $elseStart + $elseTagLength, (int)$elseStart + $elseTagLength);
+
+        preg_match('/<%\s?endif\s?%>\n?/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
+        if (!$endMatches) {
+            throw new RuntimeException("Missing <% endif %> tag.");
+        }
+
+        $conditionEnd = $endMatches[0][1];
+
+        $elseBlock = substr($string, $elseStart + $elseTagLength, $conditionEnd - $elseStart - $elseTagLength);
+        
+        return $elseBlock;
+    }
+
+    /**
+     * Parse nested if conditions.
+     * @param string $string The string to parse
+     * @param array $arguments Array with the arguments (variables) from the template
+     * @param int $searchOffset Offset to start searching for the condition from
+     * @param int $replaceOffset Offset to start replacing the condition from
+     * @return string The parsed string
+     */
+    protected static function parseNestedIfs(string $string, array $arguments = [], int $searchOffset = 0, int $replaceOffset = 0): string
+    {
+        $nestedIfs = preg_match_all(static::CONDITION_PATTERN, $string, $nestedMatches, PREG_OFFSET_CAPTURE, $searchOffset);
+        if ($nestedIfs !== false && $nestedIfs > 0) {
+            $string = static::parseConditions($string, $arguments, $replaceOffset);
+        }
+
+        return $string;
+    }
+
+    /**
+     * @param string $defaultMatch The default value match
+     * @return mixed The default value
+     */
+    protected static function getDefaultValue(string $defaultMatch): mixed
+    {
+        $default = ltrim($defaultMatch, '=') ?? null;
+
+        if ($default === null) {
+            return static::LITERALLY_NULL;
+        }
+
+        return static::convertArgumentType($default);
     }
 
     private static function removeDuplicates(array $array): array
@@ -472,31 +577,5 @@ final class Parser
             }
         }
         return $uniqueValues;
-    }
-
-    /**
-     * @param string $defaultMatch
-     * @param array $defaults
-     * @return mixed
-     */
-    private static function getDefaultValue(string $defaultMatch): mixed
-    {
-        $default = trim($defaultMatch, '=') ?? null;
-
-        if (!$default) {
-            return static::LITERALLY_NULL;
-        }
-
-        if (is_numeric($default) && !preg_match('/([\'"`])/', $default)) {
-            return strpos($default, '.') === false ? (int)$default : (float)$default;
-        } else if ((str_starts_with($default, '"') && str_ends_with($default, '"')) || (str_starts_with($default, "'") && str_ends_with($default, "'"))) {
-            return (string) trim($default, '\'"`');
-        } else if (in_array($default, ['false', 'true'])) {
-            return (bool) $default;
-        } else if ($default === 'null') {
-            return null;
-        } else {
-            return $default;
-        }
     }
 }

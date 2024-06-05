@@ -71,6 +71,30 @@ class ParserTest extends TestCase
     }
 
     /** @testCase */
+    public function testDefaultValueTypes()
+    {
+        $string = 'Hello <% var="world" %><% var2=1 %><% var3=true %><% var4=null %>';
+        $args = [];
+
+        $parsed = Parser::parseString($string, $args);
+
+        Assert::equal('Hello world11', $parsed, 'Default values parsed correctly.');
+    }
+
+    /** @testCase */
+    public function testEmptyDefaultValue()
+    {
+        $string = 'Hello <% var= %>!';
+        $string2 = 'Hello <% var=|upper %>!';
+
+        $parsed = Parser::parseString($string, []);
+        $parsed2 = Parser::parseString($string2, []);
+
+        Assert::equal('Hello !', $parsed, 'Empty default value parsed correctly.');
+        Assert::equal('Hello !', $parsed2, 'Empty default value with filter parsed correctly.');
+    }
+
+    /** @testCase */
     public function testIgnoreDefaultValue()
     {
         $string = 'Hello <% var="world" %>!';
@@ -197,17 +221,129 @@ class ParserTest extends TestCase
     public function testElseBlocks()
     {
         $string = "Hello<% if false %> Amazing<% else %> Cruel<% endif %> World!";
-
         $expected = "Hello Cruel World!";
 
         $string2 = "Hello<% if true %> Amazing<% else %> Cruel<% endif %> World!";
-
         $expected2 = "Hello Amazing World!";
 
         $parsed = Parser::parseString($string, []);
         $parsed2 = Parser::parseString($string2, []);
         Assert::equal($expected, $parsed, '(false) Else block is parsed.');
         Assert::equal($expected2, $parsed2, '(true) If block is parsed.');
+    }
+
+    /** @testCase */
+    public function testNestedIfElse()
+    {
+        $string = "Hello<% if false %> Amazing<% else %> Cruel<% if true %> World!<% endif %><% endif %>";
+        $expected = "Hello Cruel World!";
+
+        $string2 = "Hello<% if true %> Amazing<% else %> Cruel<% if false %> World!<% endif %><% endif %>";
+        $expected2 = "Hello Amazing";
+
+        $parsed = Parser::parseString($string, []);
+        $parsed2 = Parser::parseString($string2, []);
+        Assert::equal($expected, $parsed, '(false) Nested if-else block is parsed.');
+        Assert::equal($expected2, $parsed2, '(true) Nested if-else block is parsed.');
+    }
+
+    /** @testCase */
+    public function testDoubleNestedIfElseElse()
+    {
+        $string = "Hello<% if false %> Amazing<% else %> Cruel<% if false %> World!<% else %> Universe!<% endif %><% endif %>";
+        $expected = "Hello Cruel Universe!";
+
+        $string2 = "Hello<% if true %> Amazing<% else %> Cruel<% if false %> World!<% else %> Universe!<% endif %><% endif %>";
+        $expected2 = "Hello Amazing";
+
+        $string3 = "Hello<% if false %> Amazing<% else %> Cruel<% if true %> World!<% else %> Universe!<% endif %><% endif %>";
+        $expected3 = "Hello Cruel World!";
+
+        $parsed = Parser::parseString($string, []);
+        $parsed2 = Parser::parseString($string2, []);
+        $parsed3 = Parser::parseString($string3, []);
+        Assert::equal($expected, $parsed, '(false false) Double nested if-else block is parsed.');
+        Assert::equal($expected2, $parsed2, '(true false) Double nested if-else block is parsed.');
+        Assert::equal($expected3, $parsed3, '(false true) Double nested if-else block is parsed.');
+    }
+
+    /** @testCase */
+    public function testDoubleNestedIfElseElseElse()
+    {
+        $string = "Hello<% if false %> Amazing<% else %> Cruel<% if false %> World<% else %> Universe<% endif %><% if false %>!<% else %>?<% endif %><% endif %>";
+        $expected = "Hello Cruel Universe?";
+
+        $string2 = "Hello<% if false %> Amazing<% else %> Cruel<% if true %> World<% else %> Universe<% endif %><% if false %>!<% else %>?<% endif %><% endif %>";
+
+        $expected2 = "Hello Cruel World?";
+
+        $string3 = "Hello<% if false %> Amazing<% else %> Cruel<% if true %> World!<% else %> Universe<% if false %> Milky Way!<% else %> Andromeda!<% endif %><% endif %><% endif %>";
+        $expected3 = "Hello Cruel World!";
+
+        $string4 = "Hello<% if false %> Amazing<% else %> Cruel<% if false %> World!<% else %> Universe<% if true %> Milky Way!<% else %> Andromeda!<% endif %><% endif %><% endif %>";
+        $expected4 = "Hello Cruel Universe Milky Way!";
+
+        $parsed = Parser::parseString($string, []);
+        $parsed2 = Parser::parseString($string2, []);
+        $parsed3 = Parser::parseString($string3, []);
+        $parsed4 = Parser::parseString($string4, []);
+        Assert::equal($expected, $parsed, '(false false false) Double nested if-else block is parsed.');
+        Assert::equal($expected2, $parsed2, '(false true false) Double nested if-else block is parsed.');
+        Assert::equal($expected3, $parsed3, '(false true false) Double nested if-else block is parsed.');
+        Assert::equal($expected4, $parsed4, '(false false true) Double nested if-else block is parsed.');
+    }
+
+    /** @testCase */
+    public function testEmptyIfBlockAndEmptyElseBlock()
+    {
+        $string = "Hello<% if false %><% else %> Cruel<% endif %> World!";
+        $expected = "Hello Cruel World!";
+
+        $string2 = "Hello<% if true %> Amazing<% else %><% endif %> World!";
+        $expected2 = "Hello Amazing World!";
+
+        $string3 = "Hello<% if true %><% else %> Cruel<% endif %> World!";
+        $expected3 = "Hello World!";
+
+        $string4 = "Hello<% if false %> Amazing<% else %><% endif %> World!";
+        $expected4 = "Hello World!";
+
+        $parsed = Parser::parseString($string, []);
+        $parsed2 = Parser::parseString($string2, []);
+        $parsed3 = Parser::parseString($string3, []);
+        $parsed4 = Parser::parseString($string4, []);
+        Assert::equal($expected, $parsed, 'Empty if block with false is parsed.');
+        Assert::equal($expected2, $parsed2, 'Empty else block with true is parsed.');
+        Assert::equal($expected3, $parsed3, 'Empty if block with true is parsed.');
+        Assert::equal($expected4, $parsed4, 'Empty else block with false is parsed.');
+    }
+
+    /** @testCase */
+    public function testNegatedCondition()
+    {
+        $string = "Hello<% if !false %> Amazing<% endif %> World!";
+        $expected = "Hello Amazing World!";
+        $string2 = "Hello<% if !true %> Amazing<% else %> Cruel<% endif %> World!";
+        $expected2 = "Hello Cruel World!";
+
+        $parsed = Parser::parseString($string, []);
+        $parsed2 = Parser::parseString($string2, []);
+        Assert::equal($expected, $parsed, 'Negated false is true.');
+        Assert::equal($expected2, $parsed2, 'Negated true is false -> else shown.');
+    }
+
+    /** @testCase */
+    public function testNegatedArgument()
+    {
+        $string = 'Hello<% if !$foo %> Amazing<% endif %> World!';
+        $expected = "Hello Amazing World!";
+        $string2 = 'Hello<% if !$foo %> Amazing<% else %> Cruel<% endif %> World!';
+        $expected2 = "Hello Cruel World!";
+
+        $parsed = Parser::parseString($string, ['foo' => null]);
+        $parsed2 = Parser::parseString($string2, ['foo' => true]);
+        Assert::equal($expected, $parsed, 'Negated false is true.');
+        Assert::equal($expected2, $parsed2, 'Negated true is false -> else shown.');
     }
 }
 

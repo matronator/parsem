@@ -2,3 +2,4 @@ vendor
 parsem.sketch
 .DS_Store
 dump.log
+.idea/

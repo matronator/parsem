@@ -12,17 +12,17 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/nette/neon.git",
-                "reference": "d016eb143f513873043d9d4d645d2d02d3afab1f"
+                "reference": "b9a2bdda27535c1613b4f6429778315f5647f9c6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nette/neon/zipball/d016eb143f513873043d9d4d645d2d02d3afab1f",
-                "reference": "d016eb143f513873043d9d4d645d2d02d3afab1f",
+                "url": "https://api.github.com/repos/nette/neon/zipball/b9a2bdda27535c1613b4f6429778315f5647f9c6",
+                "reference": "b9a2bdda27535c1613b4f6429778315f5647f9c6",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "php": ">=8.0 <8.3"
+                "php": "8.0 - 8.3"
             },
             "require-dev": {
                 "nette/tester": "^2.4",
@@ -36,7 +36,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "3.4-dev"
+                    "dev-master": "3.5-dev"
                 }
             },
             "autoload": {
@@ -73,7 +73,7 @@
                 "issues": "https://github.com/nette/neon/issues",
                 "source": "https://github.com/nette/neon/tree/master"
             },
-            "time": "2023-02-06T19:24:05+00:00"
+            "time": "2024-05-16T14:00:49+00:00"
         },
         {
             "name": "opis/json-schema",
@@ -350,16 +350,16 @@
         },
         {
             "name": "symfony/yaml",
-            "version": "v7.1.0",
+            "version": "7.2.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/yaml.git",
-                "reference": "c5f718c94e3c37dd77b77484e6cf0b524b2d405e"
+                "reference": "412589da9efe781abff81770478ec88466ab3082"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/yaml/zipball/c5f718c94e3c37dd77b77484e6cf0b524b2d405e",
-                "reference": "c5f718c94e3c37dd77b77484e6cf0b524b2d405e",
+                "url": "https://api.github.com/repos/symfony/yaml/zipball/412589da9efe781abff81770478ec88466ab3082",
+                "reference": "412589da9efe781abff81770478ec88466ab3082",
                 "shasum": ""
             },
             "require": {
@@ -401,7 +401,7 @@
             "description": "Loads and dumps YAML files",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/yaml/tree/v7.1.0"
+                "source": "https://github.com/symfony/yaml/tree/7.2"
             },
             "funding": [
                 {
@@ -417,7 +417,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-04-28T18:29:00+00:00"
+            "time": "2024-06-02T19:15:21+00:00"
         }
     ],
     "packages-dev": [
@@ -427,16 +427,16 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/nette/tester.git",
-                "reference": "9497147b6260b21ab808d451154075698e0b27d6"
+                "reference": "363c1b1e552c4b832ace4dc2325933b26a77bd8f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nette/tester/zipball/9497147b6260b21ab808d451154075698e0b27d6",
-                "reference": "9497147b6260b21ab808d451154075698e0b27d6",
+                "url": "https://api.github.com/repos/nette/tester/zipball/363c1b1e552c4b832ace4dc2325933b26a77bd8f",
+                "reference": "363c1b1e552c4b832ace4dc2325933b26a77bd8f",
                 "shasum": ""
             },
             "require": {
-                "php": ">=8.0 <8.3"
+                "php": ">=8.0 <8.4"
             },
             "require-dev": {
                 "ext-simplexml": "*",
@@ -495,7 +495,7 @@
                 "issues": "https://github.com/nette/tester/issues",
                 "source": "https://github.com/nette/tester/tree/master"
             },
-            "time": "2023-05-04T08:16:59+00:00"
+            "time": "2024-05-16T14:14:27+00:00"
         }
     ],
     "aliases": [],
@@ -509,7 +509,7 @@
     },
     "platform-dev": [],
     "platform-overrides": {
-        "php": "8.1"
+        "php": "8.2"
     },
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.3.0"
 }
