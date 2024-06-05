@@ -192,6 +192,23 @@ class ParserTest extends TestCase
         Assert::equal($expected, $parsed, '(false) New lines are ignored.');
         Assert::equal($expected2, $parsed2, '(true) New lines are ignored.');
     }
+
+    /** @testCase */
+    public function testElseBlocks()
+    {
+        $string = "Hello<% if false %> Amazing<% else %> Cruel<% endif %> World!";
+
+        $expected = "Hello Cruel World!";
+
+        $string2 = "Hello<% if true %> Amazing<% else %> Cruel<% endif %> World!";
+
+        $expected2 = "Hello Amazing World!";
+
+        $parsed = Parser::parseString($string, []);
+        $parsed2 = Parser::parseString($string2, []);
+        Assert::equal($expected, $parsed, '(false) Else block is parsed.');
+        Assert::equal($expected2, $parsed2, '(true) If block is parsed.');
+    }
 }
 
 (new ParserTest())->run();

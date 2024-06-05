@@ -25,7 +25,7 @@ final class Parser
      * 3: filter:10,'arg','another'                     --> (filter with args)
      * 4: filter                                        --> (only filter name)
      */
-    public const VARIABLE_PATTERN = '/<%\s?([a-zA-Z0-9_]+)(=.+?)?\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
+    public const VARIABLE_PATTERN = '/<%\s?((?!endif|else)[a-zA-Z0-9_]+)(=.+?)?\|?(([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
 
     /**
      * Matches:
@@ -86,6 +86,61 @@ final class Parser
             return $string;
         }
 
+        $result = static::getConditionResult($matches, $arguments);
+
+        $conditionStart = $matches[0][1];
+        $conditionLength = strlen($matches[0][0]);
+
+        $nestedIfs = preg_match_all(static::CONDITION_PATTERN, $string, $nestedMatches, PREG_OFFSET_CAPTURE, $offset + $conditionLength);
+        if ($nestedIfs > 0) {
+            $string = self::parseConditions($string, $arguments, (int)$conditionStart + (int)$conditionLength, $offset);
+        }
+
+        $hasElse = false;
+
+        $elseCount = preg_match('/<%\s?else\s?%>\n?/', $string, $elseMatches, PREG_OFFSET_CAPTURE, $offset);
+        if ($elseCount !== false && $elseCount === 1 && $elseMatches) {
+            $hasElse = true;
+            preg_match('/<%\s?endif\s?%>\n?/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
+            if (!$endMatches) {
+                throw new RuntimeException("Missing <% endif %> tag.");
+            }
+
+            $elseStart = $elseMatches[0][1];
+            $elseTagLength = strlen($elseMatches[0][0]);
+            $conditionEnd = $endMatches[0][1];
+
+            $elseBlock = substr($string, $elseStart + $elseTagLength, $conditionEnd - $elseStart - $elseTagLength);
+        } else if ($elseCount > 1) {
+            throw new RuntimeException("Too many <% else %> tags.");
+        }
+
+        preg_match('/<%\s?endif\s?%>\n?/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
+        if (!$endMatches) {
+            throw new RuntimeException("Missing <% endif %> tag.");
+        }
+
+        
+        if ($hasElse) {
+            $conditionEnd = $endMatches[0][1];
+            $insideBlock = substr($string, $conditionStart + $conditionLength, $elseStart - $conditionStart - $conditionLength);
+            $string = substr_replace($string, $result ? $insideBlock : $elseBlock, (int)$conditionStart, $conditionEnd - $conditionStart + strlen($endMatches[0][0]));
+        } else {
+            $conditionEnd = $endMatches[0][1];
+            $insideBlock = substr($string, $conditionStart + $conditionLength, $conditionEnd - $conditionStart - $conditionLength);
+            $string = substr_replace($string, $result ? $insideBlock : '', (int)$conditionStart, $conditionEnd - $conditionStart + strlen($endMatches[0][0]));
+        }
+
+        preg_match(static::CONDITION_PATTERN, $string, $matches, PREG_OFFSET_CAPTURE, $offset);
+        if (!$matches) {
+            return $string;
+        }
+
+        return self::parseConditions($string, $arguments, (int)$conditionStart);
+    }
+
+    public static function getConditionResult(array $matches, array $arguments = []): bool
+    {
         $left = $matches['left'][0];
         $negation = $matches['negation'][0] ?? null;
         $operator = $matches['operator'][0] ?? null;
@@ -182,20 +237,7 @@ final class Parser
             $result = $left;
         }
 
-        preg_match('/<%\s?endif\s?%>\n?/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
-        if (!$endMatches) {
-            throw new RuntimeException("Missing <% endif %> tag.");
-        }
-
-        $insideBlock = substr($string, $matches[0][1] + strlen($matches[0][0]), $endMatches[0][1] - $matches[0][1] - strlen($matches[0][0]));
-        $string = substr_replace($string, $result ? $insideBlock : '', (int)$matches[0][1], $endMatches[0][1] - $matches[0][1] + strlen($endMatches[0][0]));
-
-        preg_match(static::CONDITION_PATTERN, $string, $matches, PREG_OFFSET_CAPTURE, $offset);
-        if (!$matches) {
-            return $string;
-        }
-
-        return self::parseConditions($string, $arguments, (int)$matches[0][1]);
+        return $result;
     }
 
     /**
