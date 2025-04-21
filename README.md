@@ -16,6 +16,7 @@ Enhance your files with variables, conditional blocks and PHP functions as filte
   - [Templates Syntax Highlighting for VS Code](#templates-syntax-highlighting-for-vs-code)
 - [Usage](#usage)
   - [Template syntax](#template-syntax)
+    - [Comments](#comments)
     - [Conditions](#conditions)
     - [Variables](#variables)
       - [Default values](#default-values)
@@ -37,6 +38,7 @@ Enhance your files with variables, conditional blocks and PHP functions as filte
     - Use [built-in filters](#built-in-filters) or provide custom functions
   - Use `<% if %>` blocks to conditionally parse the template
     - Use `<% else %>` blocks to provide an alternative content if the condition is not met
+  - Include `<# comments #>` in the template files that are removed after patsing
 - Parse template files to string
   - Parse the entire file as a string
 - Provide a custom regex pattern to parse functions to use a custom syntax
@@ -68,6 +70,16 @@ To get syntax highlighting for template files (highlight `<% variable|placeholde
 ## Usage
 
 ### Template syntax
+
+#### Comments
+
+You can use comments in your templates by using the following syntax:
+
+```
+<# This is a comment #>
+```
+
+Comments are ignored by the parser and will be removed from the parsed output.
 
 #### Conditions
 

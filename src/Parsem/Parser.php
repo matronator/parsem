@@ -24,10 +24,10 @@ final class Parser
      * 0: <% var='default'|filter:10,'arg','another' %> --> (full match)
      * 1: var                                           --> (only variable name)
      * 2: ='default'                                    --> (default value)
-     * 3: |filter:10,'arg','another'                     --> (filter with args)
+     * 3: |filter:10,'arg','another'                    --> (filter with args)
      * 4: filter                                        --> (only filter name)
      */
-    public const string VARIABLE_PATTERN = '/<%\s?((?!endif|else)[a-zA-Z0-9_]+)(=.*?)?(\|([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
+    public const VARIABLE_PATTERN = '/<%\s?((?!endif|else)[a-zA-Z0-9_]+)(=.*?)?(\|([a-zA-Z0-9_]+?)(?:\:(?:(?:\\?\'|\\?")?.?(?:\\?\'|\\?")?,?)+?)*?)?\s?%>/m';
 
     /**
      * Matches:
@@ -39,10 +39,17 @@ final class Parser
      * 5: >               --> (operator)
      * 6: 10              --> (right side)
      */
-    public const string CONDITION_PATTERN = '/(?<all><%\s?if\s(?<condition>(?<negation>!?)(?<left>\S+?)\s?(?<right>(?<operator>(?:<=|<|===|==|>=|>|!==|!=))\s?(?<value>.+?))?)\s?%>\n?)/m';
+    public const CONDITION_PATTERN = '/(?<all><%\s?if\s(?<condition>(?<negation>!?)(?<left>\S+?)\s?(?<right>(?<operator>(?:<=|<|===|==|>=|>|!==|!=))\s?(?<value>.+?))?)\s?%>\n?)/m';
+
+    /**
+     * Matches:
+     * 0: <# comment #> --> (full match)
+     * 1: comment       --> (only comment)
+     */
+    public const COMMENT_PATTERN = '/<#\s?(.+?)\s?#>/m';
 
     /** @internal */
-    private const string LITERALLY_NULL = '⚠︎__:-␀LITERALLY_NULL␀-:__⚠︎';
+    private const LITERALLY_NULL = '⚠︎__:-␀LITERALLY_NULL␀-:__⚠︎';
 
     /**
      * Parses a file to a PHP object, replacing all template variables with the provided `$arguments` values.
@@ -77,6 +84,7 @@ final class Parser
         if (!is_string($string)) return $string;
 
         $string = static::parseConditions($string, $arguments);
+        $string = static::removeComments($string);
 
         preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
         $args = [];
@@ -140,7 +148,7 @@ final class Parser
         if (!$endMatches) {
             throw new RuntimeException("Missing <% endif %> tag.");
         }
-        
+
         $conditionEnd = $endMatches[0][1];
         $replaceLength = $conditionEnd - $conditionStart + strlen($endMatches[0][0]);
 
@@ -153,6 +161,11 @@ final class Parser
         }
 
         return static::parseConditions($string, $arguments, $conditionStart);
+    }
+
+    public static function removeComments(string $string): string
+    {
+        return preg_replace(static::COMMENT_PATTERN, '', $string);
     }
 
     /**
@@ -272,7 +285,7 @@ final class Parser
                 throw new RuntimeException("Failed to get template schema from remote server: " . $e->getMessage());
             }
         }
-        
+
         return $validator->validate($parsed, $schema)->isValid();
     }
 
@@ -412,7 +425,7 @@ final class Parser
         if ($negation === '!') {
             $left = !$left;
         }
-        
+
         if (isset($right)) {
             $right = static::transformConditionValue($right, $arguments);
             $result = static::getResultByOperator($left, $operator, $right);
@@ -529,7 +542,7 @@ final class Parser
         $conditionEnd = $endMatches[0][1];
 
         $elseBlock = substr($string, $elseStart + $elseTagLength, $conditionEnd - $elseStart - $elseTagLength);
-        
+
         return $elseBlock;
     }
 
