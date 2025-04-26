@@ -83,8 +83,8 @@ final class Parser
     {
         if (!is_string($string)) return $string;
 
-        $string = static::parseConditions($string, $arguments);
         $string = static::removeComments($string);
+        $string = static::parseConditions($string, $arguments);
 
         preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
         $args = [];
