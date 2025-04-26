@@ -115,10 +115,10 @@ class ParserTest extends TestCase
 
         $parsed = Parser::parseString($string, $args);
         Assert::equal('Hello wo...!', $parsed, 'Filter applied correctly to default value.');
-        
+
         $parsed = Parser::parseString($string2, $args);
         Assert::equal('Hello wo!', $parsed, 'Filter applied correctly to default value.');
-        
+
         $parsed = Parser::parseString($string3, $args);
         Assert::equal('Hello !', $parsed, 'Filter applied correctly to empty default value.');
     }
@@ -344,6 +344,53 @@ class ParserTest extends TestCase
         $parsed2 = Parser::parseString($string2, ['foo' => true]);
         Assert::equal($expected, $parsed, 'Negated false is true.');
         Assert::equal($expected2, $parsed2, 'Negated true is false -> else shown.');
+    }
+
+    /** @testCase */
+    public function testNegation()
+    {
+        $template1 = '<% if $true %>not negated<% endif %>';
+        $expected1 = 'not negated';
+        $template2 = '<% if !$false %>negated<% endif %>';
+        $expected2 = 'negated';
+        $template3 = '<% if !$true %>negated<% endif %>';
+        $expected3 = '';
+        $template4 = '<% if true %>literal<% endif %>';
+        $expected4 = 'literal';
+
+        $parsed1 = Parser::parseString($template1, ['true' => true]);
+        $parsed2 = Parser::parseString($template2, ['false' => false]);
+        $parsed3 = Parser::parseString($template3, ['true' => true]);
+        $parsed4 = Parser::parseString($template4);
+        Assert::equal($expected1, $parsed1, 'Negation of true is false.');
+        Assert::equal($expected2, $parsed2, 'Negation of false is true.');
+        Assert::equal($expected3, $parsed3, 'Negation of true is false.');
+        Assert::equal($expected4, $parsed4, 'Parsed literal.');
+    }
+
+    /** @testCase */
+    public function testComments()
+    {
+        $string = 'Hello <# This is a comment #>World!';
+        $string2 = 'Hello <#This is a comment#>World!';
+        $expected = 'Hello World!';
+
+        $parsed = Parser::parseString($string);
+        $parsed2 = Parser::parseString($string2);
+        Assert::equal($expected, $parsed, 'Comment is removed.');
+        Assert::equal($expected, $parsed2, 'Comment without spaces is removed.');
+    }
+
+    /** @testCase */
+    public function testCommentsWithConditionsAndVariables()
+    {
+        $string = 'Hello <# This is a comment <% if $condition %> #>World!<# <% $variable %> <% endif %> #>';
+        $expected = 'Hello World!';
+
+        $parsed = Parser::parseString($string);
+        $parsed2 = Parser::parseString($string, ['condition' => true, 'variable' => 'test']);
+        Assert::equal($expected, $parsed, 'Comment with condition and variable is removed.');
+        Assert::equal($expected, $parsed2, 'Comment with condition and variable is removed even with arguments.');
     }
 }
 
