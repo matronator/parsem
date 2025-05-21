@@ -15,7 +15,7 @@
         {
             "name": "Matronator",
             "email": "5470780+matronator@users.noreply.github.com",
-            "homepage": "https://matronator.com",
+            "homepage": "https://matronator.cz",
             "role": "Developer"
         }
     ],
@@ -32,7 +32,7 @@
 		}
     },
     "scripts": {
-        "test": "tester ."
+        "test": "tester tests/ -p phpdbg --coverage coverage.html --coverage-src src/Parsem"
     },
     "minimum-stability": "dev",
     "funding": [

@@ -1,0 +1,41 @@
+language: php
+
+php:
+  - '8.1'
+  - '8.2'
+  - '8.3'
+  - '8.4'
+  - nightly
+
+env:
+  - TESTER_PHP_BIN="php"
+  - TESTER_PHP_BIN="phpdbg"
+
+before_install:
+  - composer self-update
+
+install:
+  - composer install --no-interaction --prefer-source
+
+matrix:
+  exclude:
+    - php: 8.2
+      env: TESTER_PHP_BIN="phpdbg"
+
+    - php: 8.3
+      env: TESTER_PHP_BIN="phpdbg"
+
+    - php: 8.4
+      env: TESTER_PHP_BIN="phpdbg"
+
+    - php: nightly
+      env: TESTER_PHP_BIN="phpdbg"
+  allow_failures:
+    - php: nightly
+
+script:
+  - ./vendor/bin/tester ./tests -p $TESTER_PHP_BIN -s --coverage coverage.html --coverage-src src/Parsem
+
+after_failure:
+  # Print *.actual file contents
+  - for i in $(find ./tests -name \*.actual); do echo "--- $i"; cat $i; echo; echo; done

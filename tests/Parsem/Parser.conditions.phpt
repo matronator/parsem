@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * TEST: Test parsing conditions
+ * @testCase
+ */
+
 declare(strict_types=1);
 
 use Matronator\Parsem\Parser;
@@ -8,122 +13,8 @@ use Tester\TestCase;
 
 require __DIR__ . '/../bootstrap.php';
 
-class ParserTest extends TestCase
+class ParserConditionsTest extends TestCase
 {
-    public function getNonStringValues()
-    {
-        return [ [1], [true], [null], [-30], [0], [['sumting']], [(object) ['idk' => 'lol']], [1.23456789]];
-    }
-
-    /**
-     * @dataProvider getNonStringValues
-     * @testCase
-     */
-    public function testParseNonStringValue($arg)
-    {
-        Assert::same($arg, Parser::parseString($arg), 'Parse non-string value');
-    }
-
-    /** @testCase */
-    public function testParseStringTemplate()
-    {
-        $string = 'test <% mate|pow:3 %> and with a <%filter|strtoupper%>';
-        $args = ['mate' => 2, 'filter' => 'lol'];
-
-        $parsed = Parser::parseString($string, $args);
-
-        Assert::notContains('<%', $parsed, 'All template parameters are parsed.');
-        Assert::notContains('%>', $parsed, 'All template parameters are parsed.');
-        Assert::equal('test 8 and with a LOL', $parsed, 'Parses correctly.');
-    }
-
-    /** @testCase */
-    public function testFilterWithArguments()
-    {
-        $string = '<% var|substr:1,3 %>';
-        $args = ['var' => 'abcdef'];
-
-        $parsed = Parser::parseString($string, $args);
-
-        Assert::equal('bcd', $parsed, 'Filter with arguments parsed correctly.');
-    }
-
-    /** @testCase */
-    public function testDefaultFilter()
-    {
-        $string = '<% var|pascalCase %>';
-        $args = ['var' => 'hello world'];
-
-        $parsed = Parser::parseString($string, $args);
-
-        Assert::equal('HelloWorld', $parsed, 'Default filter parsed correctly.');
-    }
-
-    /** @testCase */
-    public function testDefaultValue()
-    {
-        $string = 'Hello <% var="world" %>!';
-        $args = [];
-
-        $parsed = Parser::parseString($string, $args);
-
-        Assert::equal('Hello world!', $parsed, 'Default value parsed correctly.');
-    }
-
-    /** @testCase */
-    public function testDefaultValueTypes()
-    {
-        $string = 'Hello <% var="world" %><% var2=1 %><% var3=true %><% var4=null %>';
-        $args = [];
-
-        $parsed = Parser::parseString($string, $args);
-
-        Assert::equal('Hello world11', $parsed, 'Default values parsed correctly.');
-    }
-
-    /** @testCase */
-    public function testEmptyDefaultValue()
-    {
-        $string = 'Hello <% var= %>!';
-        $string2 = 'Hello <% var=|upper %>!';
-
-        $parsed = Parser::parseString($string, []);
-        $parsed2 = Parser::parseString($string2, []);
-
-        Assert::equal('Hello !', $parsed, 'Empty default value parsed correctly.');
-        Assert::equal('Hello !', $parsed2, 'Empty default value with filter parsed correctly.');
-    }
-
-    /** @testCase */
-    public function testIgnoreDefaultValue()
-    {
-        $string = 'Hello <% var="world" %>!';
-        $args = ['var' => 'mate'];
-
-        $parsed = Parser::parseString($string, $args);
-
-        Assert::equal('Hello mate!', $parsed, 'Argument correctly overwrote default value.');
-    }
-
-    /** @testCase */
-    public function testDefaultValueWithFilter()
-    {
-        $string = 'Hello <% var="world"|truncate:2 %>!';
-        $string2 = 'Hello <% var="world"|truncate:2,"" %>!';
-        $string3 = 'Hello <% var=""|truncate:2 %>!';
-        $args = [];
-
-        $parsed = Parser::parseString($string, $args);
-        Assert::equal('Hello wo...!', $parsed, 'Filter applied correctly to default value.');
-
-        $parsed = Parser::parseString($string2, $args);
-        Assert::equal('Hello wo!', $parsed, 'Filter applied correctly to default value.');
-
-        $parsed = Parser::parseString($string3, $args);
-        Assert::equal('Hello !', $parsed, 'Filter applied correctly to empty default value.');
-    }
-
-    /** @testCase */
     public function testSimpleCondition()
     {
         $string = '<% if $foo === true %><% bar %> <% endif %>World!';
@@ -137,7 +28,6 @@ class ParserTest extends TestCase
         Assert::equal('World!', $parsed, 'Condition applied correctly to default value.');
     }
 
-    /** @testCase */
     public function testNestedConditions()
     {
         $string = '<% if $foo === true %>Hello<% if $bar === true %> Cruel<% endif %><% endif %> World!';
@@ -159,7 +49,6 @@ class ParserTest extends TestCase
         Assert::equal(' World!', $parsed, 'All are false');
     }
 
-    /** @testCase */
     public function testNestedNumericConditions()
     {
         $string = '<% if $foo === "asdf" %>Hello<% if $bar === 2 %> Cruel<% endif %><% endif %> World!';
@@ -181,7 +70,6 @@ class ParserTest extends TestCase
         Assert::equal(' World!', $parsed, 'All are false');
     }
 
-    /** @testCase */
     public function testNewLines()
     {
         $string = <<<EOT
@@ -217,7 +105,6 @@ class ParserTest extends TestCase
         Assert::equal($expected2, $parsed2, '(true) New lines are ignored.');
     }
 
-    /** @testCase */
     public function testElseBlocks()
     {
         $string = "Hello<% if false %> Amazing<% else %> Cruel<% endif %> World!";
@@ -232,7 +119,6 @@ class ParserTest extends TestCase
         Assert::equal($expected2, $parsed2, '(true) If block is parsed.');
     }
 
-    /** @testCase */
     public function testNestedIfElse()
     {
         $string = "Hello<% if false %> Amazing<% else %> Cruel<% if true %> World!<% endif %><% endif %>";
@@ -247,7 +133,6 @@ class ParserTest extends TestCase
         Assert::equal($expected2, $parsed2, '(true) Nested if-else block is parsed.');
     }
 
-    /** @testCase */
     public function testDoubleNestedIfElseElse()
     {
         $string = "Hello<% if false %> Amazing<% else %> Cruel<% if false %> World!<% else %> Universe!<% endif %><% endif %>";
@@ -267,7 +152,6 @@ class ParserTest extends TestCase
         Assert::equal($expected3, $parsed3, '(false true) Double nested if-else block is parsed.');
     }
 
-    /** @testCase */
     public function testDoubleNestedIfElseElseElse()
     {
         $string = "Hello<% if false %> Amazing<% else %> Cruel<% if false %> World<% else %> Universe<% endif %><% if false %>!<% else %>?<% endif %><% endif %>";
@@ -293,7 +177,6 @@ class ParserTest extends TestCase
         Assert::equal($expected4, $parsed4, '(false false true) Double nested if-else block is parsed.');
     }
 
-    /** @testCase */
     public function testEmptyIfBlockAndEmptyElseBlock()
     {
         $string = "Hello<% if false %><% else %> Cruel<% endif %> World!";
@@ -318,7 +201,6 @@ class ParserTest extends TestCase
         Assert::equal($expected4, $parsed4, 'Empty else block with false is parsed.');
     }
 
-    /** @testCase */
     public function testNegatedCondition()
     {
         $string = "Hello<% if !false %> Amazing<% endif %> World!";
@@ -332,7 +214,6 @@ class ParserTest extends TestCase
         Assert::equal($expected2, $parsed2, 'Negated true is false -> else shown.');
     }
 
-    /** @testCase */
     public function testNegatedArgument()
     {
         $string = 'Hello<% if !$foo %> Amazing<% endif %> World!';
@@ -346,7 +227,6 @@ class ParserTest extends TestCase
         Assert::equal($expected2, $parsed2, 'Negated true is false -> else shown.');
     }
 
-    /** @testCase */
     public function testNegation()
     {
         $template1 = '<% if $true %>not negated<% endif %>';
@@ -368,30 +248,52 @@ class ParserTest extends TestCase
         Assert::equal($expected4, $parsed4, 'Parsed literal.');
     }
 
-    /** @testCase */
-    public function testComments()
+    public function testNestedConditions2()
     {
-        $string = 'Hello <# This is a comment #>World!';
-        $string2 = 'Hello <#This is a comment#>World!';
-        $expected = 'Hello World!';
+        $string = <<<'EOT'
+        <% if $mintable === true %>
+        (define-public (mint (amount uint) (recipient principal))
+        (begin
+        <% if !$allowMintToAll %>
+            (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_OWNER_ONLY)
+        <% endif %>
+            (ft-mint? <% name|kebabCase %> amount recipient)
+        )
+        )
+        <% endif %>
+        EOT;
 
-        $parsed = Parser::parseString($string);
-        $parsed2 = Parser::parseString($string2);
-        Assert::equal($expected, $parsed, 'Comment is removed.');
-        Assert::equal($expected, $parsed2, 'Comment without spaces is removed.');
-    }
+        $expected1 = <<<'EOT'
+        (define-public (mint (amount uint) (recipient principal))
+        (begin
+            (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_OWNER_ONLY)
+            (ft-mint? hello-world amount recipient)
+        )
+        )
 
-    /** @testCase */
-    public function testCommentsWithConditionsAndVariables()
-    {
-        $string = 'Hello <# This is a comment <% if $condition %> #>World!<# <% $variable %> <% endif %> #>';
-        $expected = 'Hello World!';
+        EOT;
 
-        $parsed = Parser::parseString($string);
-        $parsed2 = Parser::parseString($string, ['condition' => true, 'variable' => 'test']);
-        Assert::equal($expected, $parsed, 'Comment with condition and variable is removed.');
-        Assert::equal($expected, $parsed2, 'Comment with condition and variable is removed even with arguments.');
+        $expected3 = <<<'EOT'
+        (define-public (mint (amount uint) (recipient principal))
+        (begin
+            (ft-mint? hello-world amount recipient)
+        )
+        )
+
+        EOT;
+
+        $args = ['mintable' => true, 'allowMintToAll' => false, 'name' => 'HelloWorld'];
+        $args2 = ['mintable' => false, 'allowMintToAll' => true, 'name' => 'HelloWorld'];
+        $args3 = ['mintable' => true, 'allowMintToAll' => true, 'name' => 'HelloWorld'];
+
+        $parsed1 = Parser::parseString($string, $args);
+        $parsed2 = Parser::parseString($string, $args2);
+        $parsed3 = Parser::parseString($string, $args3);
+
+        Assert::equal($expected1, $parsed1, '1: Condition applied correctly to default value.');
+        Assert::equal('', $parsed2, '2: Condition applied correctly to default value.');
+        Assert::equal($expected3, $parsed3, '3: Condition applied correctly to default value.');
     }
 }
 
-(new ParserTest())->run();
+(new ParserConditionsTest())->run();

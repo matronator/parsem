@@ -6,6 +6,7 @@ namespace Matronator\Parsem;
 
 use Exception;
 use InvalidArgumentException;
+use Matronator\Parsem\Config\PatternsOption;
 use Nette\Neon\Neon;
 use Opis\JsonSchema\Validator;
 use RuntimeException;
@@ -46,7 +47,7 @@ final class Parser
      * 0: <# comment #> --> (full match)
      * 1: comment       --> (only comment)
      */
-    public const COMMENT_PATTERN = '/<#\s?(.+?)\s?#>/m';
+    public const COMMENT_PATTERN = '/<#\s?(.*?)\s?#>/ms';
 
     /** @internal */
     private const LITERALLY_NULL = '⚠︎__:-␀LITERALLY_NULL␀-:__⚠︎';
@@ -57,17 +58,17 @@ final class Parser
      * @return string The parsed string
      * @param string $filename File to parse
      * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
-     * @param bool $strict [optional] If set to `true`, the function will throw an exception if a variable is not found in the `$arguments` array. If set to `false` null will be used.
-     * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
+     * @param bool $strict [optional] If set to `true, the function will throw an exception if a variable is not found in the `$arguments` array. If set to `false` null will be used.
+     * @param array $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
      * @throws RuntimeException If the file does not exist
      */
-    public static function parse(string $filename, array $arguments = [], bool $strict = true, ?string $pattern = null): string
+    public static function parse(string $filename, array $arguments = [], bool $strict = true, PatternsOption $patterns = new PatternsOption()): string
     {
         if (!file_exists($filename))
             throw new RuntimeException("File '$filename' does not exist.");
 
         $contents = file_get_contents($filename);
-        return static::parseString($contents, $arguments, $strict, $pattern);
+        return static::parseString($contents, $arguments, $strict, $patterns);
     }
 
     /**
@@ -76,17 +77,17 @@ final class Parser
      * @param mixed $string String to parse. If not provided with a string, the function will return this value
      * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
      * @param bool $strict [optional] If set to `true`, the function will throw an exception if a variable is not found in the `$arguments` array. If set to `false` null will be used.
-     * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
+     * @param array $patterns [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
      * @throws RuntimeException If a variable is not found in the `$arguments` array and `$strict` is set to `true`
      */
-    public static function parseString(mixed $string, array $arguments = [], bool $strict = true, ?string $pattern = null): mixed
+    public static function parseString(mixed $string, array $arguments = [], bool $strict = true, PatternsOption $patterns = new PatternsOption()): mixed
     {
         if (!is_string($string)) return $string;
 
-        $string = static::removeComments($string);
-        $string = static::parseConditions($string, $arguments);
+        $string = static::removeComments($string, $patterns['comments'] ?? null);
+        $string = static::parseConditions($string, $arguments, pattern: $patterns['conditions'] ?? null);
 
-        preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
+        preg_match_all($patterns['variables'] ?? static::VARIABLE_PATTERN, $string, $matches);
         $args = [];
         foreach ($matches[1] as $key => $match) {
             if (isset($arguments[$match])) {
@@ -106,6 +107,13 @@ final class Parser
         }
 
         $args = static::applyFilters($matches, $args);
+        foreach ($args as $key => $arg) {
+            if (is_array($arg)) {
+                $args[$key] = json_encode($arg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            } else if (is_object($arg)) {
+                $args[$key] = json_encode($arg, JSON_FORCE_OBJECT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            }
+        }
 
         return str_replace($matches[0], $args, $string);
     }
@@ -125,7 +133,9 @@ final class Parser
             return $string;
         }
 
+
         $result = static::getConditionResult($matches, $arguments);
+        echo $result;
 
         $conditionStart = (int)$matches[0][1];
         $conditionLength = strlen($matches[0][0]);
@@ -160,25 +170,12 @@ final class Parser
             $string = substr_replace($string, $result ? $insideBlock : '', $conditionStart, $replaceLength);
         }
 
-        return static::parseConditions($string, $arguments, $conditionStart);
+        return static::parseConditions($string, $arguments, $conditionStart, $pattern);
     }
 
-    public static function removeComments(string $string): string
+    public static function removeComments(string $string, ?string $pattern = null): string
     {
-        return preg_replace(static::COMMENT_PATTERN, '', $string);
-    }
-
-    /**
-     * Converts a YAML, JSON or NEON file to a corresponding PHP object, replacing all template variables with the provided `$arguments` values.
-     * @deprecated 3.2.0 __Will be removed in the next version.__ This was used for parsing JSON/YAML/NEON templates in v1 and is no longer needed in v2 and later.
-     * @return object
-     * @param string $filename
-     * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
-     * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
-     */
-    public static function parseFile(string $filename, array $arguments = [], ?string $pattern = null): object
-    {
-        return static::decodeByExtension($filename, static::parseFileToString($filename, $arguments, $pattern));
+        return preg_replace($pattern ?? static::COMMENT_PATTERN, '', $string);
     }
 
     /**
@@ -189,13 +186,13 @@ final class Parser
      * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
      * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
      */
-    public static function parseFileToString(string $filename, array $arguments = [], ?string $pattern = null): string
+    public static function parseFileToString(string $filename, array $arguments = [], PatternsOption $patterns = new PatternsOption()): string
     {
         if (!file_exists($filename))
             throw new RuntimeException("File '$filename' does not exist.");
 
         $contents = file_get_contents($filename);
-        return static::parseString($contents, $arguments, false, $pattern);
+        return static::parseString($contents, $arguments, false, $patterns);
     }
 
     /**
@@ -241,26 +238,6 @@ final class Parser
     }
 
     /**
-     * Parse a file of any type to object using a custom provided parser function.
-     * @deprecated 3.2.O __Will be removed in the next version.__ This was used for parsing JSON/YAML/NEON templates in v1 and is no longer needed in v2 and later.
-     * @return object
-     * @param string $filename
-     * @param callable $function The parsing function with the following signature `function(string $contents): object` where `$contents` will be the string content of `$filename`.
-     * @param array $arguments Array of arguments to find and replace while parsing `['key' => 'value']`
-     * @param string|null $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
-     */
-    public static function customParse(string $filename, callable $function, array $arguments = [], ?string $pattern = null): object
-    {
-        if (!file_exists($filename))
-            throw new RuntimeException("File '$filename' does not exist.");
-
-        if (!is_callable($function))
-            throw new InvalidArgumentException("Argument \$function is not callable.");
-
-        return $function(static::parseFileToString($filename, $arguments, $pattern));
-    }
-
-    /**
      * Validate the file against a template schema and return the result
      * @return boolean True if the file is a valid template, false otherwise.
      * @param string $filename
@@ -269,15 +246,21 @@ final class Parser
      */
     public static function isValid(string $filename, ?string $contents = null): bool
     {
-        try {
-            $parsed = static::decodeByExtension($filename, $contents);
-        } catch (Exception $e) {
-            return false;
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+        if (!in_array($extension, ['yml', 'yaml', 'json', 'neon'])) {
+            try {
+                $arguments = static::getArgumentsWithDefaults($contents ?? file_get_contents($filename));
+                $parsed = static::parseString($contents ?? file_get_contents($filename), $arguments);
+            } catch (Exception $e) {
+                return false;
+            }
+
+            return true;
         }
 
         $validator = new Validator();
         try {
-            $schema = file_get_contents('https://www.mtrgen.com/storage/schemas/template/latest/mtrgen-template-schema.json');
+            $schema = file_get_contents('https://mtrgen.matronator.cz/storage/schemas/template/latest/mtrgen-template-schema.json');
         } catch (Exception $e) {
             try {
                 $schema = file_get_contents('https://files.matronator.cz/public/mtrgen/latest/mtrgen-template-schema.json');
@@ -286,7 +269,7 @@ final class Parser
             }
         }
 
-        return $validator->validate($parsed, $schema)->isValid();
+        return $validator->validate($contents ?? file_get_contents($filename), $schema)->isValid();
     }
 
     /**
@@ -301,15 +284,13 @@ final class Parser
             return false;
         }
 
-        try {
-            $parsed = static::decodeByExtension($filename, $contents);
-        } catch (Exception $e) {
-            return false;
+        if (!$contents && !file_exists($filename)) {
+            throw new RuntimeException("File '$filename' does not exist and no content provided.");
         }
 
         $validator = new Validator();
         $schema = file_get_contents('https://www.mtrgen.com/storage/schemas/bundle/latest/mtrgen-bundle-schema.json');
-        return $validator->validate($parsed, $schema)->isValid();
+        return $validator->validate($contents ?? file_get_contents($filename), $schema)->isValid();
     }
 
     /**
@@ -322,9 +303,7 @@ final class Parser
     {
         preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
 
-        $arguments = static::removeDuplicates($matches[1]);
         $defaults = [];
-
         foreach ($matches[1] as $key => $match) {
             if ($matches[2][$key] !== '') {
                 $default = static::getDefaultValue($matches[2][$key]);
@@ -335,9 +314,51 @@ final class Parser
         }
 
         return (object) [
-            'arguments' => $arguments,
+            'arguments' => static::removeDuplicates($matches[1]),
             'defaults' => $defaults,
         ];
+    }
+
+    /**
+     * Find all (unique) variables in the `$string` template and return them as array with default values or null if no default is provided.
+     * @return array
+     * @param string $string String to parse.
+     * @param string|null $pattern $pattern [optional] You can provide custom regex with two matching groups (for the variable name and for the filter) to use custom template syntax instead of the default one `<% name|filter %>`
+     */
+    public static function getArgumentsWithDefaults(string $string, ?string $pattern = null): array
+    {
+        $arguments = static::getArguments($string, $pattern);
+
+        $args = [];
+        foreach ($arguments->arguments as $key => $arg) {
+            $args[$arg] = $arguments->defaults[$key] ?? null;
+        }
+
+        return $args;
+    }
+
+    public static function getTemplateDefaults(string $string, ?string $pattern = null): array
+    {
+        preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
+
+        $defaults = [];
+        foreach ($matches[1] as $key => $match) {
+            if ($matches[2][$key] !== '') {
+                $default = static::getDefaultValue($matches[2][$key]);
+                if ($default !== static::LITERALLY_NULL) {
+                    $defaults[$key] = $default;
+                }
+            }
+        }
+
+        return $defaults;
+    }
+
+    public static function getTemplateVariables(string $string, ?string $pattern = null): array
+    {
+        preg_match_all($pattern ?? static::VARIABLE_PATTERN, $string, $matches);
+
+        return static::removeDuplicates($matches[1]);
     }
 
     /**
@@ -552,13 +573,14 @@ final class Parser
      * @param array $arguments Array with the arguments (variables) from the template
      * @param int $searchOffset Offset to start searching for the condition from
      * @param int $replaceOffset Offset to start replacing the condition from
+     * @param string $pattern Pattern to use for the condition
      * @return string The parsed string
      */
-    protected static function parseNestedIfs(string $string, array $arguments = [], int $searchOffset = 0, int $replaceOffset = 0): string
+    protected static function parseNestedIfs(string $string, array $arguments = [], int $searchOffset = 0, int $replaceOffset = 0, ?string $pattern = null): string
     {
         $nestedIfs = preg_match_all(static::CONDITION_PATTERN, $string, $nestedMatches, PREG_OFFSET_CAPTURE, $searchOffset);
         if ($nestedIfs !== false && $nestedIfs > 0) {
-            $string = static::parseConditions($string, $arguments, $replaceOffset);
+            $string = static::parseConditions($string, $arguments, $replaceOffset, $pattern);
         }
 
         return $string;
@@ -583,9 +605,7 @@ final class Parser
     {
         $uniqueValues = [];
         foreach ($array as $value) {
-            if (in_array($value, $uniqueValues)) {
-                $value = null;
-            } else {
+            if (!in_array($value, $uniqueValues)) {
                 $uniqueValues[] = $value;
             }
         }

@@ -8,7 +8,15 @@ class Filters
 {
     public const ENCODING = 'UTF-8';
 
-    public const GLOBAL_FILTERS = ['upper', 'lower', 'upperFirst', 'lowerFirst', 'first', 'last', 'camelCase', 'snakeCase', 'kebabCase', 'pascalCase', 'titleCase', 'length', 'reverse', 'random', 'truncate'];
+    public const GLOBAL_FILTERS = [
+        'upper', 'lower',
+        'upperFirst', 'lowerFirst',
+        'first', 'last',
+        'camelCase', 'snakeCase', 'kebabCase', 'pascalCase', 'titleCase',
+        'length',
+        'reverse', 'random', 'shuffle',
+        'truncate',
+        'escape', 'unescape', 'hash'];
 
     public static function upper(string $string): string
     {
@@ -78,22 +86,31 @@ class Filters
         return $string;
     }
 
-    public static function length(string $string): int
+    public static function length(array|string $value): int
     {
-        return mb_strlen($string, static::ENCODING);
+        return is_string($value) ? mb_strlen($value, static::ENCODING) : count($value);
     }
 
-    public static function reverse(string $string): string
+    public static function reverse(array|string $value): array|string
     {
-        return strrev($string);
+        return is_string($value) ? strrev($value) : array_reverse($value);
     }
 
-    public static function random(array|string $array): mixed
+    public static function random(array|string $value): array|string
     {
-        if (is_string($array))
-            return $array[rand(0, strlen($array) - 1)];
-        
-        return $array[array_rand($array)];
+        if (is_string($value)) {
+            return $value[rand(0, strlen($value) - 1)];
+        }
+
+        return $value[array_rand($value)];
+    }
+
+    public static function shuffle(array|string $value): array|string
+    {
+        $array = is_string($value) ? str_split($value) : $value;
+        shuffle($array);
+
+        return $value;
     }
 
     public static function truncate(string $string, int $length, string $ending = '...'): string
@@ -101,7 +118,7 @@ class Filters
         if (mb_strlen($string, static::ENCODING) <= $length) {
             return $string;
         }
-        
+
         return mb_substr($string, 0, $length, static::ENCODING) . $ending;
     }
 }
