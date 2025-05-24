@@ -135,7 +135,6 @@ final class Parser
 
 
         $result = static::getConditionResult($matches, $arguments);
-        echo $result;
 
         $conditionStart = (int)$matches[0][1];
         $conditionLength = strlen($matches[0][0]);
