@@ -1,0 +1,64 @@
+<# The template for generating the contract.
+Uses MTRGen and Pars'Em under the hood #>
+
+;; Implement the `ft-trait` trait defined in the `ft-trait` contract
+<# (impl-trait .ft-trait.sip-010-trait) #>
+(impl-trait 'SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sip-010-trait-ft-standard.sip-010-trait)
+
+<% if $tokenSupply > 0 %>
+(define-fungible-token <% name|kebabCase %> u<% tokenSupply %>)
+<% else %>
+(define-fungible-token <% name|kebabCase %>)
+<% endif %>
+
+(define-constant ERR_ADMIN_ONLY (err u401))
+(define-constant ERR_NOT_TOKEN_OWNER (err u403))
+
+(define-constant CONTRACT_OWNER '<% userWallet %>)
+(define-constant TOKEN_URI u"<% tokenUri %>") ;; utf-8 string with token metadata host
+(define-constant TOKEN_NAME "<% name %>")
+(define-constant TOKEN_SYMBOL "<% tokenSymbol %>")
+(define-constant TOKEN_DECIMALS u<% tokenDecimals %>) ;; 6 units displayed past decimal, e.g. 1.000_000 = 1 token
+
+;; Transfers tokens to a recipient
+(define-public (transfer
+  (amount uint)
+  (sender principal)
+  (recipient principal)
+  (memo (optional (buff 34)))
+)
+  (if (is-eq tx-sender sender)
+    (begin
+      (try! (ft-transfer? <% name|kebabCase %> amount sender recipient))
+      (print memo)
+      (ok true)
+    )
+    (err ERR_NOT_TOKEN_OWNER)))
+
+(define-public (set-token-uri (token_uri (option buff 34)))
+  (if (is-eq tx-sender (ft-get-owner <% name|kebabCase %>))
+    (begin
+      (ft-set-token-uri <% name|kebabCase %> token_uri)
+      (ok true))
+    (err ERR_ADMIN_ONLY)))
+
+<# add condition based on if the mint amount is fixed or not #>
+<# if it is, the mint function won't take amount as an argument #>
+<% if $mintable === true %>
+(define-public (mint (amount uint) (recipient principal))
+  (begin
+<% if !$allowMintToAll %>
+    (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_ADMIN_ONLY)
+<% endif %>
+    (ft-mint? <% name|kebabCase %> amount recipient)
+  )
+)
+<% endif %>
+
+<% if $initialAmount > 0 %>
+(ft-mint? <% name|kebabCase %> u<% initialAmount %> CONTRACT_OWNER)
+<% endif %>
+
+<% if !$mintable %>
+(ft-mint? <% name|kebabCase %> u<% tokenSupply %> CONTRACT_OWNER)
+<% endif %>

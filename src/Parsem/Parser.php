@@ -128,48 +128,64 @@ final class Parser
      */
     public static function parseConditions(string $string, array $arguments = [], int $offset = 0, ?string $pattern = null): string
     {
-        preg_match($pattern ?? static::CONDITION_PATTERN, $string, $matches, PREG_OFFSET_CAPTURE, $offset);
-        if (!$matches) {
-            return $string;
+        $pattern = $pattern ?? static::CONDITION_PATTERN;
+
+        while (preg_match($pattern, $string, $matches, PREG_OFFSET_CAPTURE, $offset)) {
+            $result = static::getConditionResult($matches, $arguments);
+
+            $conditionStart = (int)$matches[0][1];
+            $conditionLength = strlen($matches[0][0]);
+            $insideBlockStart = $conditionStart + $conditionLength;
+
+            $hasElse = false;
+            $elseStart = null;
+            $conditionEnd = null;
+
+            $nestedOffset = $insideBlockStart;
+            $nestedIfCount = 0;
+            $elseMatch = null;
+
+            while (preg_match('/<%\s?(if|else|endif)\s?.*?%>\n?/m', $string, $tagMatches, PREG_OFFSET_CAPTURE, $nestedOffset)) {
+                $tag = $tagMatches[1][0];
+                $tagStart = (int)$tagMatches[0][1];
+
+                if ($tag === 'if') {
+                    $nestedIfCount++;
+                } elseif ($tag === 'endif') {
+                    if ($nestedIfCount === 0) {
+                        $conditionEnd = $tagStart;
+                        break;
+                    }
+                    $nestedIfCount--;
+                } elseif ($tag === 'else' && $nestedIfCount === 0) {
+                    $hasElse = true;
+                    $elseStart = $tagStart;
+                    $elseMatch = $tagMatches[0][0];
+                }
+
+                $nestedOffset = $tagStart + strlen($tagMatches[0][0]);
+            }
+
+            if ($conditionEnd === null) {
+                throw new RuntimeException("Missing <% endif %> tag.");
+            }
+
+            $replaceLength = $conditionEnd - $conditionStart + strlen($tagMatches[0][0]);
+
+            if ($hasElse) {
+                $elseTagLength = strlen($elseMatch); // Correctly calculate the length of the `<% else %>` tag
+                $insideBlock = substr($string, $insideBlockStart, $elseStart - $insideBlockStart);
+                $elseBlock = substr($string, $elseStart + $elseTagLength, $conditionEnd - ($elseStart + $elseTagLength));
+                $string = substr_replace($string, $result ? $insideBlock : $elseBlock, $conditionStart, $replaceLength);
+            } else {
+                $insideBlock = substr($string, $insideBlockStart, $conditionEnd - $insideBlockStart);
+                $string = substr_replace($string, $result ? $insideBlock : '', $conditionStart, $replaceLength);
+            }
+
+            $offset = $conditionStart;
         }
 
-
-        $result = static::getConditionResult($matches, $arguments);
-
-        $conditionStart = (int)$matches[0][1];
-        $conditionLength = strlen($matches[0][0]);
-        $insideBlockStart = $conditionStart + $conditionLength;
-
-        $hasElse = false;
-        $elseCount = preg_match('/<%\s?else\s?%>\n?/', $string, $elseMatches, PREG_OFFSET_CAPTURE, $offset);
-        if ($elseCount !== false && $elseCount === 1 && $elseMatches) {
-            $hasElse = true;
-            $elseStart = (int) $elseMatches[0][1];
-            $elseTagLength = strlen($elseMatches[0][0]);
-            $elseBlock = static::parseElseTag($string, $elseStart, $elseTagLength, $arguments, $offset);
-        } else if ($elseCount > 1) {
-            throw new RuntimeException("Too many <% else %> tags.");
-        } else {
-            $string = static::parseNestedIfs($string, $arguments, $offset + $conditionLength, $insideBlockStart);
-        }
-
-        preg_match('/<%\s?endif\s?%>\n?/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
-        if (!$endMatches) {
-            throw new RuntimeException("Missing <% endif %> tag.");
-        }
-
-        $conditionEnd = $endMatches[0][1];
-        $replaceLength = $conditionEnd - $conditionStart + strlen($endMatches[0][0]);
-
-        if ($hasElse) {
-            $insideBlock = substr($string, $insideBlockStart, $elseStart - $insideBlockStart);
-            $string = substr_replace($string, $result ? $insideBlock : $elseBlock, $conditionStart, $replaceLength);
-        } else {
-            $insideBlock = substr($string, $insideBlockStart, $conditionEnd - $insideBlockStart);
-            $string = substr_replace($string, $result ? $insideBlock : '', $conditionStart, $replaceLength);
-        }
-
-        return static::parseConditions($string, $arguments, $conditionStart, $pattern);
+        return $string;
     }
 
     public static function removeComments(string $string, ?string $pattern = null): string
@@ -539,50 +555,6 @@ final class Parser
             default:
                 throw new RuntimeException("Unsupported operator '$operator'.");
         }
-    }
-
-    /**
-     * Parse the else block of the condition.
-     * @param string &$string The string to parse (by reference - will be modified in place)
-     * @param int $elseStart The position of the else tag in the string
-     * @param int $elseTagLength The length of the else tag
-     * @param array $arguments Array with the arguments (variables) from the template
-     * @param int $offset Offset to start replacing the condition from
-     * @return string The parsed else block
-     */
-    protected static function parseElseTag(string &$string, int $elseStart, int $elseTagLength, array $arguments = [], $offset = 0): string
-    {
-        $string = static::parseNestedIfs($string, $arguments, $elseStart + $elseTagLength, (int)$elseStart + $elseTagLength);
-
-        preg_match('/<%\s?endif\s?%>\n?/', $string, $endMatches, PREG_OFFSET_CAPTURE, $offset);
-        if (!$endMatches) {
-            throw new RuntimeException("Missing <% endif %> tag.");
-        }
-
-        $conditionEnd = $endMatches[0][1];
-
-        $elseBlock = substr($string, $elseStart + $elseTagLength, $conditionEnd - $elseStart - $elseTagLength);
-
-        return $elseBlock;
-    }
-
-    /**
-     * Parse nested if conditions.
-     * @param string $string The string to parse
-     * @param array $arguments Array with the arguments (variables) from the template
-     * @param int $searchOffset Offset to start searching for the condition from
-     * @param int $replaceOffset Offset to start replacing the condition from
-     * @param string $pattern Pattern to use for the condition
-     * @return string The parsed string
-     */
-    protected static function parseNestedIfs(string $string, array $arguments = [], int $searchOffset = 0, int $replaceOffset = 0, ?string $pattern = null): string
-    {
-        $nestedIfs = preg_match_all(static::CONDITION_PATTERN, $string, $nestedMatches, PREG_OFFSET_CAPTURE, $searchOffset);
-        if ($nestedIfs !== false && $nestedIfs > 0) {
-            $string = static::parseConditions($string, $arguments, $replaceOffset, $pattern);
-        }
-
-        return $string;
     }
 
     /**
