@@ -52,23 +52,29 @@ class Filters
 
     public static function camelCase(string $string): string
     {
+        $firstCharIsLowerCase = ctype_lower(mb_substr($string, 0, 1, static::ENCODING));
         $string = str_replace(['-', '_'], ' ', $string);
         $string = ucwords($string);
         $string = str_replace(' ', '', $string);
+        if ($firstCharIsLowerCase) {
+            $string = static::lowerFirst($string);
+        }
         return $string;
     }
 
     public static function snakeCase(string $string): string
     {
+        $string = static::camelCase($string);
         $string = preg_replace('/([a-z])([A-Z])/', '$1_$2', $string);
+        $string = str_replace([' ', '-'], '_', $string);
         $string = strtolower($string);
         return $string;
     }
 
     public static function kebabCase(string $string): string
     {
-        $string = preg_replace('/([a-z])([A-Z])/', '$1-$2', $string);
-        $string = strtolower($string);
+        $string = static::snakeCase($string);
+        $string = str_replace('_', '-', $string);
         return $string;
     }
 
