@@ -96,11 +96,11 @@ final class Parser
                 $default = static::getDefaultValue($matches[2][$key]);
                 if ($default !== static::LITERALLY_NULL) {
                     $args[] = $default;
+                } else if (isset($arguments["default:$match"])) {
+                    $args[] = $arguments["default:$match"];
+                } else if ($strict) {
+                    throw new RuntimeException("Variable '$match' not found in arguments.");
                 } else {
-                    if ($strict) {
-                        throw new RuntimeException("Variable '$match' not found in arguments.");
-                    }
-
                     $args[] = null;
                 }
             }
