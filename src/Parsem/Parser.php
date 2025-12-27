@@ -92,6 +92,13 @@ final class Parser
         foreach ($matches[1] as $key => $match) {
             if (isset($arguments[$match])) {
                 $args[] = $arguments[$match];
+            } else if (isset($arguments["default:$match"])) {
+                $default = static::getDefaultValue($matches[2][$key]);
+                if ($default !== static::LITERALLY_NULL) {
+                    $args[] = $default;
+                } else {
+                    $args[] = $arguments["default:$match"];
+                }
             } else {
                 $default = static::getDefaultValue($matches[2][$key]);
                 if ($default !== static::LITERALLY_NULL) {
