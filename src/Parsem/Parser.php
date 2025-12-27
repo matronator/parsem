@@ -572,7 +572,7 @@ final class Parser
     {
         $default = ltrim($defaultMatch, '=') ?? null;
 
-        if ($default === null) {
+        if ($default === null || $default === '') {
             return static::LITERALLY_NULL;
         }
 
