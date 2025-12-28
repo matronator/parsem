@@ -158,13 +158,13 @@ final class Parser
 
                 if ($tag === 'if') {
                     $nestedIfCount++;
-                } elseif ($tag === 'endif') {
+                } else if ($tag === 'endif') {
                     if ($nestedIfCount === 0) {
                         $conditionEnd = $tagStart;
                         break;
                     }
                     $nestedIfCount--;
-                } elseif ($tag === 'else' && $nestedIfCount === 0) {
+                } else if ($tag === 'else' && $nestedIfCount === 0) {
                     $hasElse = true;
                     $elseStart = $tagStart;
                     $elseMatch = $tagMatches[0][0];
@@ -415,6 +415,9 @@ final class Parser
                     }, $args);
                     array_unshift($args, $arg);
                 } else {
+                    if ($arg === null) {
+                        $arg = '';
+                    }
                     $args = [$arg];
                 }
 

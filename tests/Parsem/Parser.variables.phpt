@@ -85,8 +85,8 @@ class ParserVariablesTest extends TestCase
         $string = 'Hello <% var= %>!';
         $string2 = 'Hello <% var=|upper %>!';
 
-        $parsed = Parser::parseString($string, []);
-        $parsed2 = Parser::parseString($string2, []);
+        $parsed = Parser::parseString($string, [], false);
+        $parsed2 = Parser::parseString($string2, [], false);
 
         Assert::equal('Hello !', $parsed, 'Empty default value parsed correctly.');
         Assert::equal('Hello !', $parsed2, 'Empty default value with filter parsed correctly.');

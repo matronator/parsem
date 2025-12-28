@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Matronator\Parsem;
 
+use Symfony\Component\Yaml\Yaml;
+
 class Filters
 {
     public const ENCODING = 'UTF-8';
@@ -15,8 +17,10 @@ class Filters
         'camelCase', 'snakeCase', 'kebabCase', 'pascalCase', 'titleCase',
         'length',
         'reverse', 'random', 'shuffle',
-        'truncate',
-        'escape', 'unescape', 'hash'];
+        'truncate', 'trim',
+        'url', 'stripTags', 'nl2br',
+        'escape', 'unescape', 'hash', 'rot13', 'encode', 'decode',
+    ];
 
     public static function upper(string $string): string
     {
@@ -40,14 +44,20 @@ class Filters
         return $fc . mb_substr($string, 1, null, static::ENCODING);
     }
 
-    public static function first(string $string): string
+    public static function first(string|array $value): mixed
     {
-        return mb_substr($string, 0, 1, static::ENCODING);
+        if (is_array($value)) {
+            return reset($value);
+        }
+        return mb_substr($value, 0, 1, static::ENCODING);
     }
 
-    public static function last(string $string): string
+    public static function last(string|array $value): mixed
     {
-        return mb_substr($string, -1, 1, static::ENCODING);
+        if (is_array($value)) {
+            return end($value);
+        }
+        return mb_substr($value, -1, 1, static::ENCODING);
     }
 
     public static function camelCase(string $string): string
@@ -87,8 +97,17 @@ class Filters
 
     public static function titleCase(string $string): string
     {
-        $string = str_replace(['-', '_'], ' ', $string);
+        // $string = str_replace(['-', '_'], ' ', $string);
+        // $split = preg_split('/(?=[A-Z])/', $string);
+        // $string = implode(' ', $split);
+        // $string = ucwords($string);
+
+        // $string = static::camelCase($string);
+        // $string = preg_replace('/([a-z])([A-Z])/', '$1 $2', $string);
+        $string = str_replace(['_'], ' ', $string);
+        $string = str_replace(['-'], ' 🜛 ', $string);
         $string = ucwords($string);
+        $string = str_replace([' 🜛 '], '-', $string);
         return $string;
     }
 
@@ -102,7 +121,7 @@ class Filters
         return is_string($value) ? strrev($value) : array_reverse($value);
     }
 
-    public static function random(array|string $value): array|string
+    public static function random(array|string $value): mixed
     {
         if (is_string($value)) {
             return $value[rand(0, strlen($value) - 1)];
@@ -113,10 +132,12 @@ class Filters
 
     public static function shuffle(array|string $value): array|string
     {
-        $array = is_string($value) ? str_split($value) : $value;
+        if (is_string($value)) {
+            return str_shuffle($value);
+        }
+        $array = clone $value;
         shuffle($array);
-
-        return $value;
+        return $array;
     }
 
     public static function truncate(string $string, int $length, string $ending = '...'): string
@@ -126,5 +147,72 @@ class Filters
         }
 
         return mb_substr($string, 0, $length, static::ENCODING) . $ending;
+    }
+
+    public static function trim(string $string, string $side = 'both', string $characters = " \n\r\t\v\0"): string
+    {
+        if ($side === 'left') {
+            return ltrim($string, $characters, );
+        } else if ($side === 'right') {
+            return rtrim($string, $characters);
+        }
+
+        return trim($string, $characters);
+    }
+
+    public static function url(string $string): string
+    {
+        return rawurlencode($string);
+    }
+
+    public static function stripTags(string $string): string
+    {
+        return strip_tags($string);
+    }
+
+    public static function nl2br(string $string, bool $xhtmlSyntax = false): string
+    {
+        return nl2br($string, $xhtmlSyntax);
+    }
+
+    public static function escape(string $string): string
+    {
+        return htmlspecialchars($string, ENT_QUOTES, static::ENCODING);
+    }
+
+    public static function unescape(string $string): string
+    {
+        return html_entity_decode($string, ENT_QUOTES, static::ENCODING);
+    }
+
+    public static function hash(string $string, string $algorithm = 'md5', string|null $secret = null): string
+    {
+        if ($secret) {
+            return hash_hmac($algorithm, $string, $secret);
+        }
+        return hash($algorithm, $string);
+    }
+
+    public static function rot13(string $string): string
+    {
+        return str_rot13($string);
+    }
+
+    public static function encode(string $string, string $encoding = 'base64'): string
+    {
+        switch ($encoding) {
+            case 'base64':
+                return base64_encode($string);
+            case 'hex':
+                return bin2hex($string);
+            case 'url':
+                return rawurlencode($string);
+            case 'json':
+                return json_encode($string);
+            case 'yaml':
+                return Yaml::dump($string);
+            default:
+                return $string;
+        }
     }
 }
